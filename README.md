@@ -1,2 +1,2 @@
-# ECE_397_RFBMTD
-Rear-facing bike-mounted trafic detector using ML for object detection
+# ECE_397_RFBTD
+Rear-facing bike trafic detector using ML for object detection

@@ -1,7 +1,7 @@
-# TIRE'd Eyes
-
+import os
 import time
 import cv2 as cv
+import keyboard as key
 
 class BikeCam():
     # Define Video Parameters and begin recording
@@ -77,28 +77,46 @@ class BikeCam():
         # save to directory
         out.release()
 
+    def __ramUsage(self):
+        total_memory, used_memory, free_memory = map(int, os.popen('free -t -m').readlines()[-1].split()[1:])
+        ram_usage = round((used_memory/total_memory) * 100, 2)
+        print(f"RAM memory % used: {ram_usage}")
+        # print(f"Total memory: {total_memory}")
+        # print(f"Used memory: {used_memory}")
+        # print(f"Free memory: {free_memory}")
+
     # Start video capture
     def __start(self):
+        # self.__ramUsage()
+
         # keep track of time for video capture every 5 mins
         while self.cap.isOpened():
             ret, frame = self.cap.read() 
             
+            # self.__ramUsage()
+
             # if frame is available
             if ret == True: 
                 # display frame
-                cv.imshow('frame', frame)
+                # cv.imshow('frame', frame)
                 
                 # append frame
                 self.frames_queue.append(frame)
 
+                # print(time.time() - self.start, len(self.frames_queue))
+                
                 # moving window
                 if time.time() - self.start > self.WINDOW:
+                    
+                    if time.time() - self.start == self.WINDOW:
+                        print("Moving Window Activated")
+                        print(f"Window limit reached: {len(self.frames_queue)}")    # 4311
+
                     # remove frames that are out of the time window 
                     self.frames_queue.pop(0)   # first in, first out
-
+                    
                 # break on keybind
-                k = cv.waitKey(20)
-                if k == ord('q'):
+                if key.is_pressed("q"):
                     break
 
             else:   
@@ -108,14 +126,21 @@ class BikeCam():
         # TODO: determine whether to patch up video before or after sequence
         self.__convertFrameToVideo()
 
+        # self.__ramUsage()
+
+        print("Video complete.\nClosing session...")
         self.cap.release()
         cv.destroyAllWindows()
 
 if __name__ == "__main__":
+
+    # total frames = 15 * 300 = 4500 frames
+    # 2.35 gb ram
     B = BikeCam(
         filename    = 'video',
         resolution  = '480p',
         vid_format  = "mp4",
-        window      = 540,      # TODO: fix frames
-        fps         = 25.0
+        window      = 300,      # 300 sec = 5 mins (get last 5 mins)
+        fps         = 15.0      # personal webcam = 15 fps
     )
+

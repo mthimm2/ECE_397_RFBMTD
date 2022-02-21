@@ -1,7 +1,10 @@
 import os
+import pickle
 import time
+
 import cv2 as cv
-import keyboard as key
+
+from gstreamer import *
 
 class BikeCam():
     # Define Video Parameters and begin recording
@@ -12,7 +15,8 @@ class BikeCam():
         self.WINDOW     = window        # Time window, save the last X amount
         self.FPS        = fps           # IMX219-160 camera max = 30 fps
 
-        self.cap        = cv.VideoCapture(0)
+        self.cap        = ""
+
         self.start      = time.time()
 
         # used to save last minute window 
@@ -21,57 +25,22 @@ class BikeCam():
         # begin recording
         self.__start()
 
-    # Set Pixel Dimensions based on resolution
-    def __setDimensions(self):
-        # common resolutions
-        RESOLUTIONS = {
-            '480p' : (640, 480),
-            '780p' : (1280, 720),
-            '1080' : (1920, 1080),
-        }
-
-        # check to see if resolution exists
-        if self.RESOLUTION in RESOLUTIONS:
-            width, height =  RESOLUTIONS[self.RESOLUTION]
-        else:
-            # default to 480p
-            width, height = RESOLUTIONS['480p']
-
-        # define video dimensions
-        self.cap.set(3, width)
-        self.cap.set(4, height)
-
-        return width, height
-
-    # Encoded Video [encodings: https://www.fourcc.org/]
-    def __setVideoType(self):
-        VIDEO_TYPE = {
-            'avi' : cv.VideoWriter_fourcc(*'XVID'),
-            'mp4' : cv.VideoWriter_fourcc(*'mp4v')
-        }
-
-        # check if video format exists
-        if self.VID_FORMAT in VIDEO_TYPE:
-            return VIDEO_TYPE[self.VID_FORMAT]
-        else:
-            return VIDEO_TYPE['avi']
-
     # Convert frames stored in frames_queue into a video and save to directory 
     def __convertFrameToVideo(self):
         # get current time
         ct = time.localtime()
         ct = time.strftime("%b-%d-%Y_%H:%M:%S", ct)
-        
-        # initialize CV video_writer
-        out = cv.VideoWriter(
-            f"{self.FILENAME}_{ct}.{self.VID_FORMAT}", 
-            self.__setVideoType(), 
-            self.FPS, 
-            self.__setDimensions()
-        )
-        
+
+        w = self.cap.get(cv.CAP_PROP_FRAME_WIDTH)
+        h = self.cap.get(cv.CAP_PROP_FRAME_HEIGHT)
+        fps = self.cap.get(cv.CAP_PROP_FPS)
+
+        gst_out = "appsrc ! video/x-raw, format=BGR ! queue ! videoconvert ! video/x-raw,format=BGRx ! nvvidconv ! nvv4l2h264enc ! h264parse ! matroskamux ! filesink location=test.mkv "
+        out = cv.VideoWriter(gst_out, cv.CAP_GSTREAMER, 0, float(fps), (int(w), int(h)))
+
         # convert frames to video
         for i in range(len(self.frames_queue)):
+            print("converting...")
             out.write(self.frames_queue[i])
 
         # save to directory
@@ -85,52 +54,58 @@ class BikeCam():
         # print(f"Used memory: {used_memory}")
         # print(f"Free memory: {free_memory}")
 
-    # Start video capture
+    # start
     def __start(self):
-        # self.__ramUsage()
+        window_title = "CSI Camera"
+        window_handle = cv.namedWindow(window_title, cv.WINDOW_AUTOSIZE)
 
-        # keep track of time for video capture every 5 mins
-        while self.cap.isOpened():
-            ret, frame = self.cap.read() 
-            
-            # self.__ramUsage()
+        self.cap = cv.VideoCapture(gstreamer_pipeline(flip_method=0), cv.CAP_GSTREAMER)
+        if self.cap.isOpened():
+            try:
+                while True:
+                    ret, frame = self.cap.read()
 
-            # if frame is available
-            if ret == True: 
-                # display frame
-                # cv.imshow('frame', frame)
-                
-                # append frame
-                self.frames_queue.append(frame)
+                    if cv.getWindowProperty(window_title, cv.WND_PROP_AUTOSIZE) >= 0:
+                        cv.imshow(window_title, frame)
+                        pass
+                    else:
+                        print("Window not available, check window handle")
+                        break 
 
-                # print(time.time() - self.start, len(self.frames_queue))
-                
-                # moving window
-                if time.time() - self.start > self.WINDOW:
+                    # append frame
+                    self.frames_queue.append(frame)
+
+                    # moving window
+                    if time.time() - self.start > self.WINDOW:
                     
-                    if time.time() - self.start == self.WINDOW:
-                        print("Moving Window Activated")
-                        print(f"Window limit reached: {len(self.frames_queue)}")    # 4311
+                        if time.time() - self.start == self.WINDOW:
+                            print("Moving Window Activated")
+                            print(f"Window limit reached: {len(self.frames_queue)}")
 
-                    # remove frames that are out of the time window 
-                    self.frames_queue.pop(0)   # first in, first out
-                    
-                # break on keybind
-                if key.is_pressed("q"):
-                    break
+                        # remove frames that are out of the time window 
+                        self.frames_queue.pop(0)   # first in, first out
 
-            else:   
-                # frame not available
-                break
+                    # break with esc or q
+                    k = cv.waitKey(10) & 0xFF
+                    if k == 27 or k == ord('q'):
+                        break
 
-        # TODO: determine whether to patch up video before or after sequence
-        self.__convertFrameToVideo()
+            finally:
+                print("Video complete.\nClosing session...")
+                self.__convertFrameToVideo()
+                self.cap.release()
+                cv.destroyAllWindows()
 
-        # self.__ramUsage()
+                file = open("test.pkl","wb")
+                pickle.dump(self.frames_queue, file)
+                file.close()
 
-        print("Video complete.\nClosing session...")
-        self.cap.release()
-        cv.destroyAllWindows()
+        else:
+            print("Error: Unable to open camera") 
+
+        if KeyboardInterrupt:
+            self.__convertFrameToVideo()
+            print("Keyboard was stopped with interrupt")           
 
 if __name__ == "__main__":
 
@@ -144,3 +119,12 @@ if __name__ == "__main__":
         fps         = 15.0      # personal webcam = 15 fps
     )
 
+'''
+    # print(time.time() - self.start, len(self.frames_queue))
+    # print(len(self.frames_queue))
+
+    k = cv.waitKey(20)
+    if k == ord('q')
+        break
+
+'''

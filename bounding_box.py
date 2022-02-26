@@ -89,16 +89,16 @@ class BoundingBox():
     def __determinePosition(self):
         positions = {
             "left"   : self.left, 
-            "middle" : self.middle, 
+            "center" : self.center, 
             "right"  : self.right, 
             "far"    : self.far, 
-            "center" : self.center, 
+            "middle" : self.middle, 
             "close"  : self.close
         }
         
         # determine position
         for pos, coord in positions.items():
-            if pos == "left" or pos == "middle" or pos == "right":
+            if pos == "left" or pos == "center" or pos == "right":
                 if self.mp[0] >= coord[0] and self.mp[0] <= coord[1]:
                     self.loc.append(pos)
             else:

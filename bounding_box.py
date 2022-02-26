@@ -49,13 +49,13 @@ class BoundingBox():
         plt.axhline(y_seg * 2)  
 
         # apply boundaries for left-center-right & far-middle-close [rear-view]
-        self.right   = (0, x_seg)
+        self.right  = (0, x_seg)
         self.center = (x_seg, x_seg*2)
-        self.left  = (x_seg*2, x_seg*3)
+        self.left   = (x_seg*2, x_seg*3)
 
-        self.close    = (0, y_seg)
+        self.close  = (0, y_seg)
         self.middle = (y_seg, y_seg*2)
-        self.far  = (y_seg*2, y_seg*3)
+        self.far    = (y_seg*2, y_seg*3)
 
     def __findPosition(self):
         # TODO: apply for multiple detections?
@@ -72,10 +72,10 @@ class BoundingBox():
         right   = ((self.v[1][0], self.v[0][1]), self.v[1])
 
         # convert points into line segment
-        top = (([top[0][0], top[1][0]]), ([top[0][1], top[1][1]]))
-        bottom = (([bottom[0][0], bottom[1][0]]), ([bottom[0][1], bottom[1][1]]))
-        left = (([left[0][0], left[1][0]]), ([left[0][1], left[1][1]]))
-        right = (([right[0][0], right[1][0]]), ([right[0][1], right[1][1]]))
+        top     = (([top[0][0], top[1][0]]), ([top[0][1], top[1][1]]))
+        bottom  = (([bottom[0][0], bottom[1][0]]), ([bottom[0][1], bottom[1][1]]))
+        left    = (([left[0][0], left[1][0]]), ([left[0][1], left[1][1]]))
+        right   = (([right[0][0], right[1][0]]), ([right[0][1], right[1][1]]))
 
         # input()
         plt.plot(top[0], top[1], color="lime")

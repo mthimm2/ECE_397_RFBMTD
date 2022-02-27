@@ -3,9 +3,11 @@ import matplotlib.pyplot as plt
 
 # bounding box will receive the leftmost and rightmost vertices
 class BoundingBox():    
-    def __init__(self, v):
+    def __init__(self, v, Co):
         self.v      = v     # tlv = top-left vertice, brv = bottom-right vertice
                             # [(tlv, brv), (tlv, brv)...]
+
+        self.Co     = Co    # distance coefficient
 
         self.img    = None
         self.mp     = None  # mid-point
@@ -24,6 +26,7 @@ class BoundingBox():
         self.__findPosition()
         self.__plotBoundingBox()
         self.__determinePosition()
+        self.__determineDistance()
 
         plt.imshow(self.img)
         plt.show()
@@ -43,19 +46,11 @@ class BoundingBox():
         # apply vertical lines for [display purposes only]
         plt.axvline(x_seg)
         plt.axvline(x_seg * 2)
-        
-        # apply horizontal lines for [display purposes only]
-        plt.axhline(y_seg)
-        plt.axhline(y_seg * 2)  
 
         # apply boundaries for left-center-right & far-middle-close [rear-view]
         self.right  = (0, x_seg)
         self.center = (x_seg, x_seg*2)
         self.left   = (x_seg*2, x_seg*3)
-
-        self.close  = (0, y_seg)
-        self.middle = (y_seg, y_seg*2)
-        self.far    = (y_seg*2, y_seg*3)
 
     def __findPosition(self):
         # TODO: apply for multiple detections?
@@ -91,24 +86,32 @@ class BoundingBox():
             "left"   : self.left, 
             "center" : self.center, 
             "right"  : self.right, 
-            "far"    : self.far, 
-            "middle" : self.middle, 
-            "close"  : self.close
         }
         
         # determine position
         for pos, coord in positions.items():
             if pos == "left" or pos == "center" or pos == "right":
                 if self.mp[0] >= coord[0] and self.mp[0] <= coord[1]:
-                    self.loc.append(pos)
-            else:
-                # y-axis: far, center, close
-                if self.mp[1] >= coord[0] and self.mp[1] <= coord[1]:
-                    self.loc.append(pos)         
+                    self.loc.append(pos)       
 
-        print(self.loc)
+        print(f"Location: {self.loc}")
+
+    def __determineDistance(self):
+        # get image width
+        img_dim_x = self.img.shape[0]
+
+        # get object width via bounding box vertices
+        obj_dim_x = self.v[1][0] - self.v[0][0]
+
+        # obtain distance based on object's pixel ratio to full image * distance coefficient
+        dist = (obj_dim_x / img_dim_x) * self.Co
+
+        print(f"Distance {dist}")
 
 if __name__ == "__main__":
     # 631, 403 -> 1020, 540
     #                top-left  bottom-right
-    B = BoundingBox([(631,390),(1020,540)])    # [(tlv, brv), (tlv, brv)...]
+    B = BoundingBox(
+        v=[(631,390),(1020,540)],     # [(tlv, brv), (tlv, brv)...]
+        Co=100
+    )    

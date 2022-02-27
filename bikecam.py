@@ -1,5 +1,5 @@
 import os
-import pickle
+# import pickle
 import time
 
 import cv2 as cv
@@ -35,7 +35,7 @@ class BikeCam():
         h = self.cap.get(cv.CAP_PROP_FRAME_HEIGHT)
         fps = self.cap.get(cv.CAP_PROP_FPS)
 
-        gst_out = "appsrc ! video/x-raw, format=BGR ! queue ! videoconvert ! video/x-raw,format=BGRx ! nvvidconv ! nvv4l2h264enc ! h264parse ! matroskamux ! filesink location=test.mkv "
+        gst_out = f"appsrc ! video/x-raw, format=BGR ! queue ! videoconvert ! video/x-raw,format=BGRx ! nvvidconv ! nvv4l2h264enc ! h264parse ! matroskamux ! filesink location=bikecam-{ct}.mkv "
         out = cv.VideoWriter(gst_out, cv.CAP_GSTREAMER, 0, float(fps), (int(w), int(h)))
 
         # convert frames to video
@@ -97,7 +97,7 @@ class BikeCam():
                 cv.destroyAllWindows()
 
                 file = open("test.pkl","wb")
-                pickle.dump(self.frames_queue, file)
+                # pickle.dump(self.frames_queue, file)
                 file.close()
 
         else:

@@ -90,9 +90,15 @@ class BoundingBox():
         
         # determine position
         for pos, coord in positions.items():
-            if pos == "left" or pos == "center" or pos == "right":
+            if pos == "center":
                 if self.mp[0] >= coord[0] and self.mp[0] <= coord[1]:
-                    self.loc.append(pos)       
+                    self.loc.append(pos)
+            elif pos == "left":
+                if self.mp[0] >= coord[0]:
+                    self.loc.append(pos)
+            else:   # pos == right
+                if self.mp[0] <= coord[0]:
+                    self.loc.append(pos)
 
         print(f"Location: {self.loc}")
 

@@ -35,7 +35,7 @@ class BikeCam():
 
         w = 1280#self.cap.get(cv.CAP_PROP_FRAME_WIDTH)
         h = 720#self.cap.get(cv.CAP_PROP_FRAME_HEIGHT)
-        fps = 15#self.cap.get(cv.CAP_PROP_FPS)
+        fps = self.FPS#self.cap.get(cv.CAP_PROP_FPS)
 
         gst_out = f"appsrc ! video/x-raw, format=BGR ! queue ! videoconvert ! video/x-raw,format=BGRx ! nvvidconv ! nvv4l2h264enc ! h264parse ! matroskamux ! filesink location=bikecam-{ct}.mkv "
         out = cv.VideoWriter(gst_out, cv.CAP_GSTREAMER, 0, fps, (w, h))

@@ -85,7 +85,7 @@ net = jetson.inference.detectNet(args.network, sys.argv, args.threshold)
 
 # Set up the Camera and Video output display.
 #camera = jetson.utils.videoSource("csi://0")      # '/dev/video0' for V4L2
-camera = jetson.utils.videoSource("csi://0", argv=['--input-flip=rotate-180', '--input-width=1280', '--input-height=720', '--input-frameRate=30'])
+camera = jetson.utils.videoSource("csi://0", argv=['--input-flip=rotate-180', '--input-width=1280', '--input-height=720', '--input-frameRate=20'])
 display = jetson.utils.videoOutput("display://0") # 'my_video.mp4' for file
 
 #IMAGE_PATH = '/jetson-inference/Integration/max_sample_images'
@@ -96,8 +96,8 @@ bikecam = BikeCam(
 	filename    = 'video',
     resolution  = '720p',
     vid_format  = "mp4",
-    window      = 90,      # 300 sec = 5 mins (get last 5 mins)
-    fps         = 15.0      # personal webcam = 15 fps
+    window      = 60,      # 300 sec = 5 mins (get last 5 mins)
+    fps         = 20.0      # personal webcam = 15 fps
 
 )
 
@@ -127,6 +127,8 @@ def determinePosition(img_center):
 		return "right"	
 
 try:
+
+	bikecam.start = time.time()
 	# While loop
 	while True:
 
@@ -137,13 +139,14 @@ try:
 		right, center, left = segmentImage(img)
 
 		# Moving Window frame management
-		if time.time() - bikecam.start > bikecam.WINDOW:
-		                
-			if time.time() - bikecam.start == bikecam.WINDOW:
-				print("Moving Window Activated")
-				print(f"Window limit reached: {len(bikecam.frames_queue)}")
+		#if time.time() - bikecam.start > bikecam.WINDOW:
+		if len(bikecam.frames_queue) > bikecam.WINDOW * bikecam.FPS:
+		    
+			# Remove frame from the front of the queue
+			#print("Moving Window Activated")
+			#print(f"Window limit reached: {len(bikecam.frames_queue)}")
 
-			# remove frames that are out of the time window 
+			# remove frames that are out of the time window
 			bikecam.frames_queue.pop(0)   # first in, first out
 
 		# Detect the Objects in the image and store them in detections.
@@ -178,18 +181,26 @@ try:
 				detection_right.append(info_tuple)
 
 			#detection_info.append(info_tuple)
-			print(detection)
+			#print(detection)
+
+		left_max_width, center_max_width, right_max_width, l_coeff, r_coeff, c_coeff = 0, 0, 0, 0, 0, 0
 
 		# Take maximum width detection from each segment
-		left_max_width = max([widths[0] for widths in detection_left])
-		center_max_width = max([widths[0] for widths in detection_center])
-		right_max_width = max([widths[0] for widths in detection_right])
+		if len(detection_left) > 0:
+			left_max_width = max([widths[0] for widths in detection_left])
+			l_coeff = (left_max_width / img.width)# * distance_coeff
 
-		# Light LEDs based on this information
-		l_coeff = (left_max_width / img.width)# * distance_coeff
-		c_coeff = (center_max_width / img.width)# * distance_coeff
-		r_coeff = (right_max_width / img.width)# * distance_coeff
+		if len(detection_center) > 0:
+			center_max_width = max([widths[0] for widths in detection_center])
+			c_coeff = (center_max_width / img.width)# * distance_coeff
 
+		if len(detection_right) > 0:
+			right_max_width = max([widths[0] for widths in detection_right])
+			r_coeff = (right_max_width / img.width)# * distance_coeff
+		
+		print("left max: ", l_coeff)
+		print("center max: ", c_coeff)
+		print("right max: ", r_coeff)
 
 		# Display the image and the objects detected and the preformance.
 		#display.Render(img)
@@ -211,5 +222,6 @@ try:
 		# 	break
 
 finally:
+	print(time.time() - bikecam.start)
 	bikecam.convertFrameToVideo()
 

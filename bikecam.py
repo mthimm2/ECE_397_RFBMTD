@@ -19,24 +19,26 @@ class BikeCam():
 
         self.start      = time.time()
 
+        self.frame 		= None			# A frame from the camera stream
+
         # used to save last minute window 
         self.frames_queue = []
 
         # begin recording
-        self.__start()
+        #self.__start()
 
     # Convert frames stored in frames_queue into a video and save to directory 
-    def __convertFrameToVideo(self):
+    def convertFrameToVideo(self):
         # get current time
         ct = time.localtime()
         ct = time.strftime("%b-%d-%Y_%H:%M:%S", ct)
 
-        w = self.cap.get(cv.CAP_PROP_FRAME_WIDTH)
-        h = self.cap.get(cv.CAP_PROP_FRAME_HEIGHT)
-        fps = self.cap.get(cv.CAP_PROP_FPS)
+        w = 1280#self.cap.get(cv.CAP_PROP_FRAME_WIDTH)
+        h = 720#self.cap.get(cv.CAP_PROP_FRAME_HEIGHT)
+        fps = 15#self.cap.get(cv.CAP_PROP_FPS)
 
         gst_out = f"appsrc ! video/x-raw, format=BGR ! queue ! videoconvert ! video/x-raw,format=BGRx ! nvvidconv ! nvv4l2h264enc ! h264parse ! matroskamux ! filesink location=bikecam-{ct}.mkv "
-        out = cv.VideoWriter(gst_out, cv.CAP_GSTREAMER, 0, float(fps), (int(w), int(h)))
+        out = cv.VideoWriter(gst_out, cv.CAP_GSTREAMER, 0, fps, (w, h))
 
         # convert frames to video
         for i in range(len(self.frames_queue)):
@@ -63,17 +65,17 @@ class BikeCam():
         if self.cap.isOpened():
             try:
                 while True:
-                    ret, frame = self.cap.read()
+                    ret, self.frame = self.cap.read()
 
                     if cv.getWindowProperty(window_title, cv.WND_PROP_AUTOSIZE) >= 0:
-                        cv.imshow(window_title, frame)
+                        cv.imshow(window_title, self.frame)
                         pass
                     else:
                         print("Window not available, check window handle")
                         break 
 
                     # append frame
-                    self.frames_queue.append(frame)
+                    self.frames_queue.append(self.frame)
 
                     # moving window
                     if time.time() - self.start > self.WINDOW:
@@ -105,7 +107,7 @@ class BikeCam():
 
         if KeyboardInterrupt:
             self.__convertFrameToVideo()
-            print("Keyboard was stopped with interrupt")           
+            print("Keyboard was stopped with interrupt")         
 
 if __name__ == "__main__":
 
@@ -122,9 +124,7 @@ if __name__ == "__main__":
 '''
     # print(time.time() - self.start, len(self.frames_queue))
     # print(len(self.frames_queue))
-
     k = cv.waitKey(20)
     if k == ord('q')
         break
-
 '''

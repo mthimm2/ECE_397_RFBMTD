@@ -33,6 +33,7 @@ import jetson.utils
 #import os
 import argparse
 import sys
+# from bounding_box import *
 
 # Parser Parameters
 parser = argparse.ArgumentParser(description="Locate objects in a live camera stream using an object detection DNN.", 
@@ -100,12 +101,40 @@ bikecam = BikeCam(
 
 )
 
+distance_coeff = 100
+
+right, center, left = 0, 0, 0
+
+def segmentImage(img):
+	x_seg = img.width / 3
+
+	right  = (0, x_seg)
+	center = (x_seg, x_seg*2)
+	left   = (x_seg*2, x_seg*3)
+
+	return right, center, left
+	
+def determinePosition(img_center):
+
+	# If x coord of center point is > left threshold of center segment and <= right threshold of center segment
+	if img_center[0] >= center[0] and img_center[0] <= center[1]:
+		return "center"
+	# If x coord of center point is at or beyond the right-hand threshold of the center region 
+	elif img_center[0] >= left[0]:
+		return "left"
+	# Otherwise, it's on the right
+	else: # img_center <= right[1]:
+		return "right"	
+
 try:
 	# While loop
 	while True:
 
 		# Capture an image from the camera.
 		img = camera.Capture()
+		
+		# For each shot we take, determine the left, right, and center
+		right, center, left = segmentImage(img)
 
 		# Moving Window frame management
 		if time.time() - bikecam.start > bikecam.WINDOW:
@@ -116,17 +145,6 @@ try:
 
 			# remove frames that are out of the time window 
 			bikecam.frames_queue.pop(0)   # first in, first out
-
-		#if KeyboardInterrupt:
-			#bikecam.convertFrameToVideo()
-			#print("Keyboard was stopped with interrupt")  
-
-		#for image in os.listdir(IMAGE_PATH):
-
-		# Convert jpegs to workable format
-		#img = jetson.utils.loadImage(IMAGE_PATH + '/' + image)
-		#img_cuda = jetson.utils.cudaAllocMapped(width=img.width, height = img.height, format = img.format)
-		#jetson.utils.cudaMemcpy(img_cuda, img)
 
 		# Detect the Objects in the image and store them in detections.
 		detections = net.Detect(img, overlay=opt.overlay)
@@ -139,9 +157,39 @@ try:
 		# print the detections
 		print("detected {:d} objects in image".format(len(detections)))
 
+		# Make a list for detections in each segment of the image
+		detection_left, detection_center, detection_right = [], [], []
+
 		# Print out all the detections
 		for detection in detections:
+
+			# We're only interested in the widths and center of the bounding box of each detected object
+			info_tuple = (detection.Width, detection.Center)
+
+			# LRC determination using the center coordinate of the 
+			position = determinePosition(info_tuple[1])
+
+			# Append to correct list
+			if position == 'left':
+				detection_left.append(info_tuple)
+			elif position == 'center':
+				detection_center.append(info_tuple)
+			else:
+				detection_right.append(info_tuple)
+
+			#detection_info.append(info_tuple)
 			print(detection)
+
+		# Take maximum width detection from each segment
+		left_max_width = max([widths[0] for widths in detection_left])
+		center_max_width = max([widths[0] for widths in detection_center])
+		right_max_width = max([widths[0] for widths in detection_right])
+
+		# Light LEDs based on this information
+		l_coeff = (left_max_width / img.width)# * distance_coeff
+		c_coeff = (center_max_width / img.width)# * distance_coeff
+		r_coeff = (right_max_width / img.width)# * distance_coeff
+
 
 		# Display the image and the objects detected and the preformance.
 		#display.Render(img)

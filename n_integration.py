@@ -96,7 +96,7 @@ bikecam = BikeCam(
 	filename    = 'video',
     resolution  = '720p',
     vid_format  = "mp4",
-    window      = 60,      # 300 sec = 5 mins (get last 5 mins)
+    window      = 5,      # 300 sec = 5 mins (get last 5 mins)
     fps         = 20.0      # personal webcam = 15 fps
 
 )
@@ -145,9 +145,13 @@ try:
 			# Remove frame from the front of the queue
 			#print("Moving Window Activated")
 			#print(f"Window limit reached: {len(bikecam.frames_queue)}")
+			start = time.perf_counter()
+			bikecam.convertFrameToVideo()
+			end = time.perf_counter()
+			print(end - start)
 
 			# remove frames that are out of the time window
-			bikecam.frames_queue.pop(0)   # first in, first out
+			bikecam.frames_queue.clear()   # first in, first out
 
 		# Detect the Objects in the image and store them in detections.
 		detections = net.Detect(img, overlay=opt.overlay)
@@ -198,12 +202,12 @@ try:
 			right_max_width = max([widths[0] for widths in detection_right])
 			r_coeff = (right_max_width / img.width)# * distance_coeff
 		
-		print("left max: ", l_coeff)
-		print("center max: ", c_coeff)
-		print("right max: ", r_coeff)
+		#print("left max: ", l_coeff)
+		#print("center max: ", c_coeff)
+		#print("right max: ", r_coeff)
 
 		# Display the image and the objects detected and the preformance.
-		#display.Render(img)
+		display.Render(img)
 
 		display.SetStatus("Object Detection | Network {:.0f} FPS".format(net.GetNetworkFPS()))
 		
@@ -223,5 +227,5 @@ try:
 
 finally:
 	print(time.time() - bikecam.start)
-	bikecam.convertFrameToVideo()
+	#bikecam.convertFrameToVideo()
 

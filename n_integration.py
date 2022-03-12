@@ -27,6 +27,7 @@
 # Version V1.0
 
 from asyncio import gather
+from helper_functions import *
 import numpy as np
 from bikecam import *
 import jetson.inference
@@ -86,101 +87,7 @@ bikecam = BikeCam(
 
 # Variables to be used within the main program loop.
 right, center, left = 0, 0, 0
-left_max_width, center_max_width, right_max_width, l_coeff, r_coeff, c_coeff = 0, 0, 0, 0, 0, 0
-
-# Static set of labels for use with detectnet
-detectnet_label_set = set('person','bicycle','car','motorcycle','bus','train','truck')
-
-# Takes in an image from the capture stream and returns the left and right edges of the three regions within that image
-def segmentImage(img):
-
-	x_seg = img.width / 3
-
-	right  = (0, x_seg)
-	center = (x_seg, x_seg*2)
-	left   = (x_seg*2, x_seg*3)
-
-	return right, center, left
-	
-# Determines which segment an object is in via the center of its bounding box
-def determinePosition(img_center):
-
-	# If x coord of center point is > left threshold of center segment and <= right threshold of center segment
-	if img_center[0] >= center[0] and img_center[0] <= center[1]:
-		return "center"
-	# If x coord of center point is at or beyond the right-hand threshold of the center region 
-	elif img_center[0] >= left[0]:
-		return "left"
-	# Otherwise, it's on the right
-	else: # img_center <= right[1]:
-		return "right"	
-
-# Checks if the frame buffer is full, based on our specified FPS and time window
-def is_frame_buffer_full():
-
-	# Check if the frame buffer is full
-	return len(bikecam.frames_queue) > bikecam.WINDOW * bikecam.FPS
-
-# Wrapper to call the conversion and clearing of the frame buffer
-def store_footage_window():
-
-	# Convert the frame buffer to a video
-	bikecam.convertFrameToVideo()
-
-	# Empty the frame buffer
-	bikecam.frames_queue.clear()
-
-# Converts a frame to BGR8 format for storing in the frame buffer
-def frame_convert(image):
-
-	# Allocate memory and convert to BGR8
-	img_cuda = jetson.utils.cudaAllocMapped(width = image.width, height = image.height, format = 'bgr8')
-	jetson.utils.cudaConvertColor(image, img_cuda)
-	return img_cuda
-
-# Puts detected objects into their correct, spatial lists
-def gather_detection_info(detections):
-
-	# Objects go into one of these lists, based on location in the frame
-	detection_left, detection_center, detection_right = [], [], []
-
-	# Iterate through the detections
-	for detection in detections:
-		if detection.ClassID in detectnet_label_set:
-			# We're only interested in the widths and center of the bounding box of each detected object
-			info_tuple = (detection.Width, detection.Center)
-			# LRC determination using the center coordinate of the 
-			position = determinePosition(info_tuple[1])
-			# Append to correct list
-			if position == 'left':
-				detection_left.append(info_tuple)
-			elif position == 'center':
-				detection_center.append(info_tuple)
-			else:
-				detection_right.append(info_tuple)
-
-	# Return the completed lists
-	return detection_left, detection_center, detection_right
-
-# Based on all of the detections and their widths, we determine the closes object.
-def determine_closest_object_per_segement(detection_left, detection_center, detection_right):
-
-	# Refresh the variables to 0
-	left_max_width, center_max_width, right_max_width, l_coeff, r_coeff, c_coeff = 0, 0, 0, 0, 0, 0
-	
-	# Take maximum width detection from each segment
-	if len(detection_left) > 0:
-		left_max_width = max([widths[0] for widths in detection_left])
-		l_coeff = (left_max_width / img.width)# * distance_coeff
-	if len(detection_center) > 0:
-		center_max_width = max([widths[0] for widths in detection_center])
-		c_coeff = (center_max_width / img.width)# * distance_coeff
-	if len(detection_right) > 0:
-		right_max_width = max([widths[0] for widths in detection_right])
-		r_coeff = (right_max_width / img.width)# * distance_coeff
-
-	# Return the updated variables
-	return l_coeff, r_coeff, c_coeff
+l_coeff, r_coeff, c_coeff = 0, 0, 0
 
 bikecam.start = time.time()
 # Start main program loop
@@ -190,19 +97,19 @@ while True:
 	img = camera.Capture()
 	
 	# For each shot we take, determine the left, right, and center
-	right, center, left = segmentImage(img)
+	right, center, left = segmentImage(img, right, center, left)
 
 	# Check if the frame buffer is full
-	if is_frame_buffer_full:
+	if is_frame_buffer_full(bikecam.frames_queue, bikecam.WINDOW, bikecam.FPS):
 		
 		# Convert the frame buffer, then flush.
-		store_footage_window()
+		bikecam.convertFrameToVideo()
+
+		# Clear frame buffer
+		bikecam.frames_queue.clear()
 
 	# Detect the objects in the image and store them in detections.
 	detections = net.Detect(img, overlay=opt.overlay)
-
-	# Convert BGR image to RGB
-	img_cuda = frame_convert(img)
 
 	# print the detections
 	#print("detected {:d} objects in image".format(len(detections)))
@@ -212,7 +119,7 @@ while True:
 
 	# Refresh the variables to 0
 	l_coeff, r_coeff, c_coeff = determine_closest_object_per_segement(
-		detection_left, detection_center, detection_right
+		detection_left, detection_center, detection_right, img.width
 	)
 	
 	# Print coefficients of closes objects
@@ -232,7 +139,10 @@ while True:
 	# Clears the console so that we don't have a wall of scrolling text.
 	os.system('clear')
 
+	# Convert image to BGR
+	img_cuda = jetson.utils.cudaAllocMapped(width = img.width, height = img.height, format = 'bgr8')
+	jetson.utils.cudaConvertColor(img, img_cuda)
+
 	# Can the gstream write out these images/frames captured by the jetson utilities?
 	# Gotta figure out how to flip BRG -> RGB
 	bikecam.frames_queue.append(np.array(img_cuda))
-	

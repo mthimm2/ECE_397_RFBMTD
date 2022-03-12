@@ -21,19 +21,18 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-# Eric Moravek and Max Thimmig
-# UIC Senior Design 3/2022
+# Team 3: Charlie Schafer, Omar Elsalaymeh, Jim Palomo, Eric Moravek, Max Thimmig
+# UIC Senior Design, Spring 2022
 # Rear Facing Bicycle Mounted Vehicle Detection System. RF-VDS
 # Version V1.0
 
+from asyncio import gather
 import numpy as np
 from bikecam import *
 import jetson.inference
 import jetson.utils
-#import os
 import argparse
 import sys
-# from bounding_box import *
 
 # Parser Parameters
 parser = argparse.ArgumentParser(description="Locate objects in a live camera stream using an object detection DNN.", 
@@ -48,13 +47,6 @@ parser.add_argument("--snapshots", type=str, default="images/test/detections", h
 parser.add_argument("--timestamp", type=str, default="%Y%m%d-%H%M%S-%f", help="timestamp format used in snapshot filenames")
 #parser.add_argument("--labels", type=str, default="jetson-inference/Integration/ssd_bikedetectnet_labels.txt", help="Path to label text file, COCO Default all labels is:  \n jetson-inference/data/networks/SSD-Mobilenet-v2/ssd_coco_labels.txt")
 
-# Old Parser Command
-# parser.add_argument("input_URI", type=str, default="", nargs='?', help="URI of the input stream")
-# parser.add_argument("output_URI", type=str, default="", nargs='?', help="URI of the output stream")
-# parser.add_argument("--network",type=str, default="ssd-mobilenet-v2", help="Choose the network to use. default: ssd-mobilenet-v2 \n Can use ssd-inception-v2, multiped,ssd-mobilenet-v1, ect")
-# parser.add_argument("--labels",type=str, default="jetson-inference/BikeDetectNet/ssd_bikedetectnet_labels.txt", help="Path to label text file, COCO Default all labels is:  \n jetson-inference/data/networks/SSD-Mobilenet-v2/ssd_coco_labels.txt")
-# parser.add_argument("--overlay",type=str,default="box labels conf", help="detection overlay flags, Valid combinations are: 'box', 'labels' ,'conf', 'none'")
-# parser.add_argument("--threshold", type=float,default=0.5, help="Choose the threshold parameter, Default: 0.5")
 args = parser.parse_args()
 
 is_headless = ["--headless"] if sys.argv[0].find('console.py') != -1 else [""]
@@ -77,18 +69,9 @@ output_stream = jetson.utils.videoOutput(opt.output_URI, argv=sys.argv+is_headle
 # load the detection network 
 net = jetson.inference.detectNet(args.network, sys.argv, args.threshold)
 
-# net = jetson.inference.detectNet("ssd-mobilenet-v2", threshold=0.5) # Left over code delete if not needed.
-
-# # create video sources 
-# input = jetson.utils.videoSource(opt.input_URI, argv=sys.argv)
-
-
 # Set up the Camera and Video output display.
-#camera = jetson.utils.videoSource("csi://0")      # '/dev/video0' for V4L2
 camera = jetson.utils.videoSource("csi://0", argv=['--input-flip=rotate-180', '--input-width=1280', '--input-height=720', '--input-frameRate=20'])
 display = jetson.utils.videoOutput("display://0") # 'my_video.mp4' for file
-
-#IMAGE_PATH = '/jetson-inference/Integration/max_sample_images'
 
 # Instantiate the bike cam
 bikecam = BikeCam(
@@ -101,11 +84,16 @@ bikecam = BikeCam(
 
 )
 
-distance_coeff = 100
-
+# Variables to be used within the main program loop.
 right, center, left = 0, 0, 0
+left_max_width, center_max_width, right_max_width, l_coeff, r_coeff, c_coeff = 0, 0, 0, 0, 0, 0
 
+# Static set of labels for use with detectnet
+detectnet_label_set = set('person','bicycle','car','motorcycle','bus','train','truck')
+
+# Takes in an image from the capture stream and returns the left and right edges of the three regions within that image
 def segmentImage(img):
+
 	x_seg = img.width / 3
 
 	right  = (0, x_seg)
@@ -114,6 +102,7 @@ def segmentImage(img):
 
 	return right, center, left
 	
+# Determines which segment an object is in via the center of its bounding box
 def determinePosition(img_center):
 
 	# If x coord of center point is > left threshold of center segment and <= right threshold of center segment
@@ -126,56 +115,42 @@ def determinePosition(img_center):
 	else: # img_center <= right[1]:
 		return "right"	
 
-try:
+# Checks if the frame buffer is full, based on our specified FPS and time window
+def is_frame_buffer_full():
 
-	bikecam.start = time.time()
-	# While loop
-	while True:
+	# Check if the frame buffer is full
+	return len(bikecam.frames_queue) > bikecam.WINDOW * bikecam.FPS
 
-		# Capture an image from the camera.
-		img = camera.Capture()
-		
-		# For each shot we take, determine the left, right, and center
-		right, center, left = segmentImage(img)
+# Wrapper to call the conversion and clearing of the frame buffer
+def store_footage_window():
 
-		# Moving Window frame management
-		#if time.time() - bikecam.start > bikecam.WINDOW:
-		if len(bikecam.frames_queue) > bikecam.WINDOW * bikecam.FPS:
-		    
-			# Remove frame from the front of the queue
-			#print("Moving Window Activated")
-			#print(f"Window limit reached: {len(bikecam.frames_queue)}")
-			start = time.perf_counter()
-			bikecam.convertFrameToVideo()
-			end = time.perf_counter()
-			print(end - start)
+	# Convert the frame buffer to a video
+	bikecam.convertFrameToVideo()
 
-			# remove frames that are out of the time window
-			bikecam.frames_queue.clear()   # first in, first out
+	# Empty the frame buffer
+	bikecam.frames_queue.clear()
 
-		# Detect the Objects in the image and store them in detections.
-		detections = net.Detect(img, overlay=opt.overlay)
+# Converts a frame to BGR8 format for storing in the frame buffer
+def frame_convert(image):
 
-		# Convert BGR frame to RGB
-		img_cuda = jetson.utils.cudaAllocMapped(width = img.width, height = img.height, format = 'bgr8')
+	# Allocate memory and convert to BGR8
+	img_cuda = jetson.utils.cudaAllocMapped(width = image.width, height = image.height, format = 'bgr8')
+	jetson.utils.cudaConvertColor(image, img_cuda)
+	return img_cuda
 
-		jetson.utils.cudaConvertColor(img, img_cuda)
+# Puts detected objects into their correct, spatial lists
+def gather_detection_info(detections):
 
-		# print the detections
-		print("detected {:d} objects in image".format(len(detections)))
+	# Objects go into one of these lists, based on location in the frame
+	detection_left, detection_center, detection_right = [], [], []
 
-		# Make a list for detections in each segment of the image
-		detection_left, detection_center, detection_right = [], [], []
-
-		# Print out all the detections
-		for detection in detections:
-
+	# Iterate through the detections
+	for detection in detections:
+		if detection.ClassID in detectnet_label_set:
 			# We're only interested in the widths and center of the bounding box of each detected object
 			info_tuple = (detection.Width, detection.Center)
-
 			# LRC determination using the center coordinate of the 
 			position = determinePosition(info_tuple[1])
-
 			# Append to correct list
 			if position == 'left':
 				detection_left.append(info_tuple)
@@ -184,48 +159,80 @@ try:
 			else:
 				detection_right.append(info_tuple)
 
-			#detection_info.append(info_tuple)
-			#print(detection)
+	# Return the completed lists
+	return detection_left, detection_center, detection_right
 
-		left_max_width, center_max_width, right_max_width, l_coeff, r_coeff, c_coeff = 0, 0, 0, 0, 0, 0
+# Based on all of the detections and their widths, we determine the closes object.
+def determine_closest_object_per_segement(detection_left, detection_center, detection_right):
 
-		# Take maximum width detection from each segment
-		if len(detection_left) > 0:
-			left_max_width = max([widths[0] for widths in detection_left])
-			l_coeff = (left_max_width / img.width)# * distance_coeff
+	# Refresh the variables to 0
+	left_max_width, center_max_width, right_max_width, l_coeff, r_coeff, c_coeff = 0, 0, 0, 0, 0, 0
+	
+	# Take maximum width detection from each segment
+	if len(detection_left) > 0:
+		left_max_width = max([widths[0] for widths in detection_left])
+		l_coeff = (left_max_width / img.width)# * distance_coeff
+	if len(detection_center) > 0:
+		center_max_width = max([widths[0] for widths in detection_center])
+		c_coeff = (center_max_width / img.width)# * distance_coeff
+	if len(detection_right) > 0:
+		right_max_width = max([widths[0] for widths in detection_right])
+		r_coeff = (right_max_width / img.width)# * distance_coeff
 
-		if len(detection_center) > 0:
-			center_max_width = max([widths[0] for widths in detection_center])
-			c_coeff = (center_max_width / img.width)# * distance_coeff
+	# Return the updated variables
+	return l_coeff, r_coeff, c_coeff
 
-		if len(detection_right) > 0:
-			right_max_width = max([widths[0] for widths in detection_right])
-			r_coeff = (right_max_width / img.width)# * distance_coeff
+bikecam.start = time.time()
+# Start main program loop
+while True:
+
+	# Capture an image from the camera.
+	img = camera.Capture()
+	
+	# For each shot we take, determine the left, right, and center
+	right, center, left = segmentImage(img)
+
+	# Check if the frame buffer is full
+	if is_frame_buffer_full:
 		
-		#print("left max: ", l_coeff)
-		#print("center max: ", c_coeff)
-		#print("right max: ", r_coeff)
+		# Convert the frame buffer, then flush.
+		store_footage_window()
 
-		# Display the image and the objects detected and the preformance.
-		display.Render(img)
+	# Detect the objects in the image and store them in detections.
+	detections = net.Detect(img, overlay=opt.overlay)
 
-		display.SetStatus("Object Detection | Network {:.0f} FPS".format(net.GetNetworkFPS()))
-		
-		# update the title bar
-		output_stream.SetStatus("{:s} | Network {:.0f} FPS".format(opt.network, net.GetNetworkFPS()))
+	# Convert BGR image to RGB
+	img_cuda = frame_convert(img)
 
-		# print out performance info
-		#net.PrintProfilerTimes()
+	# print the detections
+	#print("detected {:d} objects in image".format(len(detections)))
 
-		# Can the gstream write out these images/frames captured by the jetson utilities?
-		# Gotta figure out how to flip BRG -> RGB
-		bikecam.frames_queue.append(np.array(img_cuda))
+	# Make a list for detections in each segment of the image
+	detection_left, detection_center, detection_right = gather_detection_info(detections)
 
-		# exit on input/output EOS
-		# if not input.IsStreaming() or not output.IsStreaming():
-		# 	break
+	# Refresh the variables to 0
+	l_coeff, r_coeff, c_coeff = determine_closest_object_per_segement(
+		detection_left, detection_center, detection_right
+	)
+	
+	# Print coefficients of closes objects
+	print("left max: ", l_coeff)
+	print("center max: ", c_coeff)
+	print("right max: ", r_coeff)
 
-finally:
-	print(time.time() - bikecam.start)
-	#bikecam.convertFrameToVideo()
+	# Display the current image captured from the camera with overlays.
+	display.Render(img)
 
+	# Display window status stuff
+	display.SetStatus("Object Detection | Network {:.0f} FPS".format(net.GetNetworkFPS()))
+	
+	# update the title bar
+	output_stream.SetStatus("{:s} | Network {:.0f} FPS".format(opt.network, net.GetNetworkFPS()))
+
+	# Clears the console so that we don't have a wall of scrolling text.
+	os.system('clear')
+
+	# Can the gstream write out these images/frames captured by the jetson utilities?
+	# Gotta figure out how to flip BRG -> RGB
+	bikecam.frames_queue.append(np.array(img_cuda))
+	

@@ -22,6 +22,9 @@ Forum threads that may help:
 https://forums.developer.nvidia.com/t/unreliable-serial-communcation-via-the-uart-tx-rx-gpio-pins/158249/10 - Long thread with mod helping
 https://github.com/tymancjo/jetson_trials/blob/main/Pose_M.py - Guy who uses UART to communicate with Arduino
 
+Arduino References:
+https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7766-8-bit-AVR-ATmega16U4-32U4_Datasheet.pdf
+https://github.com/arduino-c/uart/blob/master/uart.c
 '''
 
 #!/usr/bin/python3

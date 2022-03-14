@@ -34,6 +34,16 @@ import jetson.inference
 import jetson.utils
 import argparse
 import sys
+import serial
+
+# Serial port setup
+serial_port = serial.Serial(
+    port="/dev/ttyTHS1",
+    baudrate=115200, # This may need to change to 9600 to accomodate the Arudino
+    bytesize=serial.EIGHTBITS,
+    parity=serial.PARITY_NONE,
+    stopbits=serial.STOPBITS_ONE,
+)
 
 # Parser Parameters
 parser = argparse.ArgumentParser(description="Locate objects in a live camera stream using an object detection DNN.", 
@@ -89,60 +99,92 @@ bikecam = BikeCam(
 right, center, left = 0, 0, 0
 l_coeff, r_coeff, c_coeff = 0, 0, 0
 
+# Data transmission variables
+left_col, center_col, right_col, system_status, battery_status = '00', '00', '00', '0', '0'
+
+# Do we have up to 4 packets compose a transmission?
+data_to_send = [[] * 4]
+
+# Not sure what this will look like, so I'll just leave it as an ordinary list for now
+accelerometer_data = []
+
+# We may not need this anymore if the direct video output stream works
 bikecam.start = time.time()
-# Start main program loop
-while True:
 
-	# Capture an image from the camera.
-	img = camera.Capture()
-	
-	# For each shot we take, determine the left, right, and center
-	right, center, left = segmentImage(img, right, center, left)
 
-	# Check if the frame buffer is full
-	if is_frame_buffer_full(bikecam.frames_queue, bikecam.WINDOW, bikecam.FPS):
+try:
+	# Start main program loop
+	while True:
+
+		# Capture an image from the camera.
+		img = camera.Capture()
+
+		# For each shot we take, determine the left, right, and center
+		right, center, left = segmentImage(img, right, center, left)
+
+		# Check if the frame buffer is full
+		if is_frame_buffer_full(bikecam.frames_queue, bikecam.WINDOW, bikecam.FPS):
+
+			# Convert the frame buffer, then flush.
+			bikecam.convertFrameToVideo()
+
+			# Clear frame buffer
+			bikecam.frames_queue.clear()
+
+		# Detect the objects in the image and store them in detections.
+		detections = net.Detect(img, overlay=opt.overlay)
+
+		# print the detections
+		#print("detected {:d} objects in image".format(len(detections)))
+
+		# Make a list for detections in each segment of the image
+		detection_left, detection_center, detection_right = gather_detection_info(detections)
+
+		# Refresh the variables to 0
+		l_coeff, r_coeff, c_coeff = determine_closest_object_per_segement(
+			detection_left, detection_center, detection_right, img.width
+		)
+
+		# Print coefficients of closes objects
+		print("left max: ", l_coeff)
+		print("center max: ", c_coeff)
+		print("right max: ", r_coeff)
+
+		# Compact way to determine which LEDs to light, assuming Max's packed, column format control scheme.
+		left_col = '11' if l_coeff > 0.7 else '10' if l_coeff > 0.5 else '01' if l_coeff > 0.2 else '00'
+		center_col = '11' if c_coeff > 0.7 else '10' if c_coeff > 0.5 else '01' if c_coeff > 0.2 else '00'
+		right_col = '11' if r_coeff > 0.7 else '10' if r_coeff > 0.5 else '01' if r_coeff > 0.2 else '00'
+
+		# Display the current image captured from the camera with overlays.
+		display.Render(img)
+
+		# Display window status stuff
+		display.SetStatus("Object Detection | Network {:.0f} FPS".format(net.GetNetworkFPS()))
+
+		# update the title bar
+		output_stream.SetStatus("{:s} | Network {:.0f} FPS".format(opt.network, net.GetNetworkFPS()))
+
+		# Clears the console so that we don't have a wall of scrolling text.
+		os.system('clear')
+
+		'''If we decide that we don't want the overlay in the video, we can move this just below the capture'''
+		# Convert image to BGR
+		img_cuda = jetson.utils.cudaAllocMapped(width = img.width, height = img.height, format = 'bgr8')
+		jetson.utils.cudaConvertColor(img, img_cuda)
+		bikecam.frames_queue.append(np.array(img_cuda))
+
+		# Just a placeholder. Assumes that the acceleromoter data is just a byte.
+		if serial_port.inWaiting() > 0 or len(accelerometer_data < 8):
+			accelerometer_data.append(serial_port.read())
+		else:
+			# Once we receive one byte, clear out the data so that we can have a clean slate for the next batch
+			accelerometer_data.clear()
+
+		'''Do something here with accelerometer data'''
+
 		
-		# Convert the frame buffer, then flush.
-		bikecam.convertFrameToVideo()
 
-		# Clear frame buffer
-		bikecam.frames_queue.clear()
-
-	# Detect the objects in the image and store them in detections.
-	detections = net.Detect(img, overlay=opt.overlay)
-
-	# print the detections
-	#print("detected {:d} objects in image".format(len(detections)))
-
-	# Make a list for detections in each segment of the image
-	detection_left, detection_center, detection_right = gather_detection_info(detections)
-
-	# Refresh the variables to 0
-	l_coeff, r_coeff, c_coeff = determine_closest_object_per_segement(
-		detection_left, detection_center, detection_right, img.width
-	)
-	
-	# Print coefficients of closes objects
-	print("left max: ", l_coeff)
-	print("center max: ", c_coeff)
-	print("right max: ", r_coeff)
-
-	# Display the current image captured from the camera with overlays.
-	display.Render(img)
-
-	# Display window status stuff
-	display.SetStatus("Object Detection | Network {:.0f} FPS".format(net.GetNetworkFPS()))
-	
-	# update the title bar
-	output_stream.SetStatus("{:s} | Network {:.0f} FPS".format(opt.network, net.GetNetworkFPS()))
-
-	# Clears the console so that we don't have a wall of scrolling text.
-	os.system('clear')
-
-	# Convert image to BGR
-	img_cuda = jetson.utils.cudaAllocMapped(width = img.width, height = img.height, format = 'bgr8')
-	jetson.utils.cudaConvertColor(img, img_cuda)
-
-	# Can the gstream write out these images/frames captured by the jetson utilities?
-	# Gotta figure out how to flip BRG -> RGB
-	bikecam.frames_queue.append(np.array(img_cuda))
+except KeyboardInterrupt:
+	# Braindead way to do control flow for now
+	print('Ending Program')
+	serial_port.close()

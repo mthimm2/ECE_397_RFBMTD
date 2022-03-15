@@ -75,7 +75,7 @@ camera = jetson.utils.videoSource("csi://0", argv=['--input-flip=rotate-180', '-
 display = jetson.utils.videoOutput("display://0") # 'my_video.mp4' for file
 
 # Instantiate the bike cam
-bikecam = BikeCam(
+'''bikecam = BikeCam(
 
 	filename    = 'video',
     resolution  = '720p',
@@ -83,13 +83,15 @@ bikecam = BikeCam(
     window      = 5,      # 300 sec = 5 mins (get last 5 mins)
     fps         = 20.0      # personal webcam = 15 fps
 
-)
+)'''
 
 # Variables to be used within the main program loop.
 right, center, left = 0, 0, 0
 l_coeff, r_coeff, c_coeff = 0, 0, 0
 
-bikecam.start = time.time()
+lbuff, cbuff, rbuff = [], [], []
+
+#bikecam.start = time.time()
 # Start main program loop
 while True:
 
@@ -100,13 +102,13 @@ while True:
 	right, center, left = segmentImage(img, right, center, left)
 
 	# Check if the frame buffer is full
-	if is_frame_buffer_full(bikecam.frames_queue, bikecam.WINDOW, bikecam.FPS):
+	'''if is_frame_buffer_full(bikecam.frames_queue, bikecam.WINDOW, bikecam.FPS):
 		
 		# Convert the frame buffer, then flush.
 		bikecam.convertFrameToVideo()
 
 		# Clear frame buffer
-		bikecam.frames_queue.clear()
+		bikecam.frames_queue.clear()'''
 
 	# Detect the objects in the image and store them in detections.
 	detections = net.Detect(img, overlay=opt.overlay)
@@ -123,9 +125,27 @@ while True:
 	)
 	
 	# Print coefficients of closes objects
-	print("left max: ", l_coeff)
-	print("center max: ", c_coeff)
-	print("right max: ", r_coeff)
+	#print("left max: ", l_coeff)
+	#print("center max: ", c_coeff)
+	#print("right max: ", r_coeff)
+	
+	# Put data points in buffer for measurement
+	lbuff.append(l_coeff)
+	cbuff.append(c_coeff)
+	rbuff.append(r_coeff)
+
+	# Print averages
+	print(f'L Average: {sum(lbuff) / len(lbuff)}')
+	print(f'C Average: {sum(cbuff) / len(cbuff)}')
+	print(f'R Average: {sum(rbuff) / len(rbuff)}')
+
+	# Data point buffer management
+	if len(lbuff) > 1000:
+		lbuff.pop(0)
+	if len(cbuff) > 1000:
+		cbuff.pop(0)
+	if len(rbuff) > 1000:
+		rbuff.pop(0)
 
 	# Display the current image captured from the camera with overlays.
 	display.Render(img)
@@ -140,9 +160,9 @@ while True:
 	os.system('clear')
 
 	# Convert image to BGR
-	img_cuda = jetson.utils.cudaAllocMapped(width = img.width, height = img.height, format = 'bgr8')
-	jetson.utils.cudaConvertColor(img, img_cuda)
+	#img_cuda = jetson.utils.cudaAllocMapped(width = img.width, height = img.height, format = 'bgr8')
+	#jetson.utils.cudaConvertColor(img, img_cuda)
 
 	# Can the gstream write out these images/frames captured by the jetson utilities?
 	# Gotta figure out how to flip BRG -> RGB
-	bikecam.frames_queue.append(np.array(img_cuda))
+	#bikecam.frames_queue.append(np.array(img_cuda))

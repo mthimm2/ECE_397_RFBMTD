@@ -135,17 +135,13 @@ while True:
 	rbuff.append(r_coeff)
 
 	# Print averages
-	print(f'L Average: {sum(lbuff) / len(lbuff)}')
-	print(f'C Average: {sum(cbuff) / len(cbuff)}')
-	print(f'R Average: {sum(rbuff) / len(rbuff)}')
+	#print(f'L Average: {sum(lbuff) / len(lbuff)}')
+	#print(f'C Average: {sum(cbuff) / len(cbuff)}')
+	#print(f'R Average: {sum(rbuff) / len(rbuff)}')
 
 	# Data point buffer management
-	if len(lbuff) > 1000:
-		lbuff.pop(0)
-	if len(cbuff) > 1000:
-		cbuff.pop(0)
-	if len(rbuff) > 1000:
-		rbuff.pop(0)
+	if len(lbuff) >= 1000 and len(cbuff) >= 1000 and len(rbuff) >= 1000:
+		break
 
 	# Display the current image captured from the camera with overlays.
 	display.Render(img)
@@ -157,7 +153,7 @@ while True:
 	output_stream.SetStatus("{:s} | Network {:.0f} FPS".format(opt.network, net.GetNetworkFPS()))
 
 	# Clears the console so that we don't have a wall of scrolling text.
-	os.system('clear')
+	# os.system('clear')
 
 	# Convert image to BGR
 	#img_cuda = jetson.utils.cudaAllocMapped(width = img.width, height = img.height, format = 'bgr8')
@@ -166,3 +162,14 @@ while True:
 	# Can the gstream write out these images/frames captured by the jetson utilities?
 	# Gotta figure out how to flip BRG -> RGB
 	#bikecam.frames_queue.append(np.array(img_cuda))
+
+'''Has to be changed after each run'''
+dist = 5
+
+with open('points.csv', 'a') as outfile:
+    for q in lbuff:
+        outfile.write(f'{dist},{q}\n')
+    for q in rbuff:
+        outfile.write(f'{dist},{q}\n')
+    for q in cbuff:
+        outfile.write(f'{dist},{q}\n')

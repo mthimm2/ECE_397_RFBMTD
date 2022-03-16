@@ -2,7 +2,9 @@
 ## If you are going to make changes make a new branch or I will think your code is nvidias base code.
 
 The main repository for the deepstream python code is the file is
-ds_trafficcamnet.py
+ds_trafficcamnet.py 
+
+If you are going to make edits to the main deepstream python code then make a new branch please.
 
 this file depends on ds_trafficcamtest_config.txt. It is not expected for edits to happen to the _config.txt. 
 

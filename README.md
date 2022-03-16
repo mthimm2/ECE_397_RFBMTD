@@ -1,4 +1,4 @@
-# ECE_397_RFBTD
-Rear-facing bike traffic detector using ML for object detection
+# ECE 397 Senior design project:
+## Rear-facing bike traffic detector using ML for object detection
 
-Todo: make a proper Read Me file
+# Todo finish readme.md

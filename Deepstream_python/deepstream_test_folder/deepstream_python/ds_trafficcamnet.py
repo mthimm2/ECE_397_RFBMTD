@@ -37,6 +37,12 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         print("Unable to get GstBuffer ")
         return
 
+    ''' 
+        
+        Integration goes here
+    
+    '''
+
     # Retrieve batch metadata from the gst_buffer
     # Note that pyds.gst_buffer_get_nvds_batch_meta() expects the
     # C address of gst_buffer as input, which is obtained with hash(gst_buffer)
@@ -70,6 +76,12 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
                 l_obj = l_obj.next
             except StopIteration:
                 break
+
+        ''' 
+            
+            Integration ends goes here
+        
+        '''
 
         # Eric: We then display the objects detected on the screen.
 

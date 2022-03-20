@@ -18,7 +18,9 @@
 ################################################################################
 
 import sys
-sys.path.append('../')
+#sys.path.append('../')
+# Changed to absolute path
+sys.path.append('/opt/nvidia/deepstream/deepstream-6.0/sources/deepstream_python_apps/apps')
 import platform
 import configparser
 

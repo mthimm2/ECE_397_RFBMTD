@@ -408,7 +408,7 @@ def main(args):
     streammux.set_property('batch-size', 1)
     streammux.set_property('batched-push-timeout', 4000000)
     streammux.set_property('live-source',1) # Added for CSI
-    #streammux.set_property('buffer-pool-size', 4) # TODO Find out if this helps
+    
 
     
 

@@ -198,22 +198,22 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
             we wanna consider it to be bigger.
         '''
 
-        # Cyclist's left side [object is passing close left (cyclist rear POV)]
-        if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
-            pass
-            '''
-                for item in left_det:
-                    if item[3] == obj_meta.object_id:
+        # # Cyclist's left side [object is passing close left (cyclist rear POV)]
+        # if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
+        #     pass
+        #     '''
+        #         for item in left_det:
+        #             if item[3] == obj_meta.object_id:
 
-            '''
+        #     '''
 
-        # Cyclist's right side [object is passing close right (cyclist rear POV)]
-        elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
-            pass
+        # # Cyclist's right side [object is passing close right (cyclist rear POV)]
+        # elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
+        #     pass
 
-        else:
-            # object is not passing
-            pass
+        # else:
+        #     # object is not passing
+        #     pass
 
         # Determine closes object in each frame
         l_max_width = max([info_t[0] for info_t in left_det])   if len(left_det)    > 0 else 0
@@ -234,21 +234,50 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         # Closest per segment known here
 
         # FDU Code:
-        
+        # 00 = off, 01 = far, 10 = med, 11 = close
+        # LL | CC | RR | SB
+        # 01 | 23 | 45 | 67
+
         l_data  = EncodeDistanceData(l_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
         c_data  = EncodeDistanceData(c_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
         r_data  = EncodeDistanceData(r_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
 
         # Battery functions 
-        # Battery needs to be updated with code form b
+        bus = smbus.SMBus(1)    # TODO: check whether or not to leave this here or before loop
+        battery_cap = readCapacity(bus)
+        b_data = ""
+        
+        if battery_cap > 75:
+            b_data = "3"
+        elif battery_cap > 50:
+            b_data = "2"
+        elif battery_cap > 25:
+            b_data = "1"
+        else:
+            b_data = "0"
 
         # Is the status LED for the battery?
         # if so then update the information scheme as needed
-        o_data   = f"0{bat}0"   # status (0-1), battery (0-3), setup (0-1)
+        o_data   = f"0{b_data}"   # status (0-1), battery (0-3)
 
         # Send computed data to the FDU
         uart_jetson_object.send(l_data + c_data + r_data + o_data)
         
+        # Overwrite left or right detection data sent from Jetson to Arduino Micro
+        # Cyclist's left side [object is passing close left (cyclist rear POV)]
+        if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
+            uart_jetson_object.send("11" + c_data + r_data + o_data)
+            # uart_jetson_object.send("1000000000")
+
+        # Cyclist's right side [object is passing close right (cyclist rear POV)]
+        elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
+            uart_jetson_object.send(l_data + c_data + "11" + o_data)
+            # uart_jetson_object.send("0001000000")
+
+        else:
+            # object is not passing
+            pass
+
         ''' 
             
             Integration ends goes here

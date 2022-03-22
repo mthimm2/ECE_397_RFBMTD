@@ -65,25 +65,43 @@ class UART_Jetson():
     Implement in deepstream_test2-csi.py
 '''
 
+# Max
+# 00 = off, 01 = far, 10 = med, 11 = close
 # Function to determine which LED to turn on
 def EncodeDistanceData(distance, close_coeff, med_coeff, far_coeff):
     data = ""
     if distance > close_coeff:
-        data += "1"
-    else:
-        data += "0"
+        data += "11"
 
-    if distance > med_coeff:
-        data += "1"
-    else:
-        data += "0"      
+    elif distance > med_coeff:
+        data += "10"
 
-    if distance > far_coeff:
-        data += "1"
-    else:
-        data += "0"    
+    elif distance > far_coeff:
+        data += "01"  
 
     return data
+
+
+# Eric
+# Function to determine which LED to turn on
+# def EncodeDistanceData(distance, close_coeff, med_coeff, far_coeff):
+#     data = ""
+#     if distance > close_coeff:
+#         data += "1"
+#     else:
+#         data += "0"
+
+#     if distance > med_coeff:
+#         data += "1"
+#     else:
+#         data += "0"      
+
+#     if distance > far_coeff:
+#         data += "1"
+#     else:
+#         data += "0"    
+
+#     return data
 
 
 '''

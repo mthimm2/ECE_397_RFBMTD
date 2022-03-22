@@ -267,12 +267,12 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         # Cyclist's left side [object is passing close left (cyclist rear POV)]
         if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
             uart_jetson_object.send("11" + c_data + r_data + o_data)
-            # uart_jetson_object.send("1000000000")
+            # uart_jetson_object.send("100" + c_data + r_data + o_data)
 
         # Cyclist's right side [object is passing close right (cyclist rear POV)]
         elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
             uart_jetson_object.send(l_data + c_data + "11" + o_data)
-            # uart_jetson_object.send("0001000000")
+            # uart_jetson_object.send(l_data + c_data + "100" + o_data)
 
         else:
             # object is not passing

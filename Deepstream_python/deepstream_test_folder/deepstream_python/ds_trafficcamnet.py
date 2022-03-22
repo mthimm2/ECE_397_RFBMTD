@@ -98,7 +98,7 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
     # Initialize UART_Jetson Object
     # Enables serial at a baudrate of 9600
     # TODO: check serial_port settings (bytesize)
-    uart_jetson_object = UART_Jetson()
+    uart_transmission = UART_Jetson()
 
     #[frame zero, frame one]
 
@@ -260,23 +260,24 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         # if so then update the information scheme as needed
         o_data   = f"0{b_data}"   # status (0-1), battery (0-3)
 
-        # Send computed data to the FDU
-        uart_jetson_object.send(l_data + c_data + r_data + o_data)
-        
         # Overwrite left or right detection data sent from Jetson to Arduino Micro
         # Cyclist's left side [object is passing close left (cyclist rear POV)]
         if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
-            uart_jetson_object.send("11" + c_data + r_data + o_data)
-            # uart_jetson_object.send("100" + c_data + r_data + o_data)
+            uart_transmission.send("11" + c_data + r_data + o_data)
+            # uart_transmission.send("100" + c_data + r_data + o_data)
 
         # Cyclist's right side [object is passing close right (cyclist rear POV)]
         elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
-            uart_jetson_object.send(l_data + c_data + "11" + o_data)
-            # uart_jetson_object.send(l_data + c_data + "100" + o_data)
+            uart_transmission.send(l_data + c_data + "11" + o_data)
+            # uart_transmission.send(l_data + c_data + "100" + o_data)
 
         else:
             # object is not passing
             pass
+
+        # Send computed data to the FDU
+        uart_transmission.send(l_data + c_data + r_data + o_data)
+
 
         ''' 
             

@@ -35,7 +35,7 @@ import pyds
 
 # Debug Flags
 DISPLAY_ON = 1
-RECORD_ON = True
+
 
 
 # Class definition
@@ -218,7 +218,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         location=location_list[max_index]
 
         # Distance estimation function:
-        # distance = c_coeff*var 
+        x = width_list[max_index]
+        distance = 0.000317*x*x + -0.276703*x + 70.820260
 
 
 
@@ -253,8 +254,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # Reading the display_text field here will return the C address of the
         # allocated string. Use pyds.get_string() to get the string content.
 
-        # Change width to distance after calibration
-        py_nvosd_text_params.display_text = "Class= {} | Id= {} | Location= {} | bBox_Width= {} | Coeff={} ".format(class_id_names[class_id_index],info_tuple[2],location,width_list[max_index], coeff[max_index])
+        # Change width to distance after calibration |   width_list[max_index]
+        py_nvosd_text_params.display_text = "Class= {} | Id= {} | Location= {} | Distance= {} | Coeff={} ".format(class_id_names[class_id_index],info_tuple[2],location,distance, coeff[max_index])
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10
@@ -381,7 +382,7 @@ def main(args):
     if is_aarch64():
         transform = Gst.ElementFactory.make("queue", "queue")
     print("Creating EGLSink \n")
-
+    
     # Finally render the osd output
     sink = Gst.ElementFactory.make("nvoverlaysink", "nvvideo-renderer")
     sink.set_property('sync', 0)

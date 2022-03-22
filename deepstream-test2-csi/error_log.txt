@@ -1,0 +1,25 @@
+(python3:23929): GStreamer-WARNING **: 16:14:37.867: Trying to link elements onscreendisplay and convertor2 that don't share a common ancestor: convertor2 hasn't been added to a bin or pipeline, and onscreendisplay is in pipeline0
+
+(python3:23929): GStreamer-WARNING **: 16:14:37.868: Trying to link elements onscreendisplay and convertor2 that don't share a common ancestor: convertor2 hasn't been added to a bin or pipeline, and onscreendisplay is in pipeline0
+
+(python3:23929): GStreamer-WARNING **: 16:14:37.868: Trying to link elements convertor2 and capsfilter that don't share a common ancestor: convertor2 hasn't been added to a bin or pipeline, but capsfilter is in pipeline0
+
+(python3:23929): GStreamer-WARNING **: 16:14:37.868: Trying to link elements convertor2 and capsfilter that don't share a common ancestor: convertor2 hasn't been added to a bin or pipeline, but capsfilter is in pipeline0
+Starting pipeline 
+
+gstnvtracker: Loading low-level lib at /opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so
+gstnvtracker: Batch processing is ON
+gstnvtracker: Past frame output is ON
+[NvMultiObjectTracker] Initialized
+0:00:11.769033139 23929      0x4f5e010 INFO                 nvinfer gstnvinfer.cpp:638:gst_nvinfer_logger:<primary-inference> NvDsInferContext[UID 1]: Info from NvDsInferContextImpl::deserializeEngineAndBackend() <nvdsinfer_context_impl.cpp:1900> [UID = 1]: deserialized trt engine from :/opt/nvidia/deepstream/deepstream-6.0/sources/deepstream_python_apps/apps/deepstream_py_file_sink/deepstream-test2-csi/trafficcamnet/trafficnet_fp16.engine
+INFO: [Implicit Engine Info]: layers num: 3
+0   INPUT  kFLOAT input_1         3x544x960       
+1   OUTPUT kFLOAT output_bbox/BiasAdd 16x34x60        
+2   OUTPUT kFLOAT output_cov/Sigmoid 4x34x60         
+
+ERROR: [TRT]: 3: Cannot find binding of given name: output_cov/Sigmoid.
+0:00:11.770376183 23929      0x4f5e010 WARN                 nvinfer gstnvinfer.cpp:635:gst_nvinfer_logger:<primary-inference> NvDsInferContext[UID 1]: Warning from NvDsInferContextImpl::checkBackendParams() <nvdsinfer_context_impl.cpp:1868> [UID = 1]: Could not find output layer 'output_cov/Sigmoid.' in engine
+0:00:11.770414777 23929      0x4f5e010 INFO                 nvinfer gstnvinfer.cpp:638:gst_nvinfer_logger:<primary-inference> NvDsInferContext[UID 1]: Info from NvDsInferContextImpl::generateBackendContext() <nvdsinfer_context_impl.cpp:2004> [UID = 1]: Use deserialized engine model: /opt/nvidia/deepstream/deepstream-6.0/sources/deepstream_python_apps/apps/deepstream_py_file_sink/deepstream-test2-csi/trafficcamnet/trafficnet_fp16.engine
+0:00:11.794625514 23929      0x4f5e010 INFO                 nvinfer gstnvinfer_impl.cpp:313:notifyLoadModelStatus:<primary-inference> [UID 1]: Load new model:dstest2_pgie_config2.txt sucessfully
+Error generated. /dvs/git/dirty/git-master_linux/multimedia/nvgstreamer/gst-nvarguscamera/gstnvarguscamerasrc.cpp, execute:751 Failed to create CaptureSession
+

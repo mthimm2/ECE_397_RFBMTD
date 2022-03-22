@@ -17,6 +17,8 @@
 # limitations under the License.
 ################################################################################
 
+
+from asyncio.windows_utils import pipe
 import sys
 #sys.path.append('../')
 # Changed to absolute path
@@ -277,49 +279,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             l_frame=l_frame.next
         except StopIteration:
             break
-    #past traking meta data
-    # if(past_tracking_meta[0]==1):
-    #     l_user=batch_meta.batch_user_meta_list
-    #     while l_user is not None:
-    #         try:
-    #             # Note that l_user.data needs a cast to pyds.NvDsUserMeta
-    #             # The casting is done by pyds.NvDsUserMeta.cast()
-    #             # The casting also keeps ownership of the underlying memory
-    #             # in the C code, so the Python garbage collector will leave
-    #             # it alone
-    #             user_meta=pyds.NvDsUserMeta.cast(l_user.data)
-    #         except StopIteration:
-    #             break
-    #         if(user_meta and user_meta.base_meta.meta_type==pyds.NvDsMetaType.NVDS_TRACKER_PAST_FRAME_META):
-    #             try:
-    #                 # Note that user_meta.user_meta_data needs a cast to pyds.NvDsPastFrameObjBatch
-    #                 # The casting is done by pyds.NvDsPastFrameObjBatch.cast()
-    #                 # The casting also keeps ownership of the underlying memory
-    #                 # in the C code, so the Python garbage collector will leave
-    #                 # it alone
-    #                 pPastFrameObjBatch = pyds.NvDsPastFrameObjBatch.cast(user_meta.user_meta_data)
-    #             except StopIteration:
-    #                 break
-    #             for trackobj in pyds.NvDsPastFrameObjBatch.list(pPastFrameObjBatch):
-    #                 print("streamId=",trackobj.streamID)
-    #                 print("surfaceStreamID=",trackobj.surfaceStreamID)
-    #                 for pastframeobj in pyds.NvDsPastFrameObjStream.list(trackobj):
-    #                     print("numobj=",pastframeobj.numObj)
-    #                     print("uniqueId=",pastframeobj.uniqueId)
-    #                     print("classId=",pastframeobj.classId)
-    #                     print("objLabel=",pastframeobj.objLabel)
-    #                     for objlist in pyds.NvDsPastFrameObjList.list(pastframeobj):
-    #                         print('frameNum:', objlist.frameNum)
-    #                         print('tBbox.left:', objlist.tBbox.left)
-    #                         print('tBbox.width:', objlist.tBbox.width)
-    #                         print('tBbox.top:', objlist.tBbox.top)
-    #                         print('tBbox.right:', objlist.tBbox.height)
-    #                         print('confidence:', objlist.confidence)
-    #                         print('age:', objlist.age)
-    #         try:
-    #             l_user=l_user.next
-    #         except StopIteration:
-    #             break
     
     
     return Gst.PadProbeReturn.OK	
@@ -337,7 +296,26 @@ def main(args):
     if not pipeline:
         sys.stderr.write(" Unable to create Pipeline \n")
 
-    # Source element for reading from the file
+    # # Source element for file input 
+    # sourceFile = Gst.ElementFactory.make("filesrc","file-source")
+    # if not sourceFile:
+    #     sys.stderr.write(" Unable to create File Source \n")
+    
+    # # Since the data format in the input file is elementary h264 stream,
+    # # we need a h264parser
+    # print("Creating H264Parser \n")
+    # h264parser = Gst.ElementFactory.make("h264parse", "h264-parser")
+    # if not h264parser:
+    #     sys.stderr.write(" Unable to create h264 parser \n")
+
+    # # Use nvdec_h264 for hardware accelerated decode on GPU
+    # print("Creating Decoder \n")
+    # decoder = Gst.ElementFactory.make("nvv4l2decoder", "nvv4l2-decoder")
+    # if not decoder:
+    #     sys.stderr.write(" Unable to create Nvv4l2 Decoder \n")
+
+
+    # Source element for csi camera
     print("Creating Source \n ")
     source = Gst.ElementFactory.make("nvarguscamerasrc", "src-elem")
     if not source:
@@ -377,12 +355,12 @@ def main(args):
     if not nvosd:
         sys.stderr.write(" Unable to create nvosd \n")
 
-    # Finally render the osd output
+    # Finally render the osd output using 'queue for jetson pref boost.
     if is_aarch64():
         transform = Gst.ElementFactory.make("queue", "queue")
+    
+    # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoberlaysink
     print("Creating EGLSink \n")
-
-    # Finally render the osd output
     sink = Gst.ElementFactory.make("nvoverlaysink", "nvvideo-renderer")
     sink.set_property('sync', 0)
     sink.set_property("overlay-x",0) # 0
@@ -390,25 +368,67 @@ def main(args):
     sink.set_property("overlay-w",960) #720
     sink.set_property("overlay-h",480) #360
 
-    
-
-
-    
-
-    # Define Sink
     if not sink:
         sys.stderr.write(" Unable to create egl sink \n")
 
+    # Define file sink Gst streams:
+    if RECORD_ON:
+        tee = Gst.ElementFactory.make("tee","nvsink-tee")
+        if not tee:
+            sys.stderr.write(" Unable to create nvsink-tee\n")
+        
+        queue2 = Gst.ElementFactory.make("queue","nvtee-queue2")
+        if not queue2:
+            sys.stderr.write(" Unable to create nvtee-queue2\n")
+
+
+        # unknown if needed 
+        nvvidconv2 = Gst.ElementFactory.make("nvvideoconvert", "convertor2")
+        if not nvvidconv2:
+            sys.stderr.write(" Unable to create nvvidconv2 \n")
+        # Dont know what caps or caps filter is
+        capsfilter = Gst.ElementFactory.make("capsfilter", "capsfilter")
+        if not capsfilter:
+            sys.stderr.write(" Unable to create capsfilter \n")
+
+        caps = Gst.Caps.from_string("video/x-raw, format=I420")
+        capsfilter.set_property("caps", caps)
+
+        encoder = Gst.ElementFactory.make("nvv4l2h264enc", "encoder")
+        if not encoder:
+            sys.stderr.write(" Unable to create encoder \n")
+        encoder.set_property("bitrate", 2000000)
+
+        print("Creating Code Parser \n")
+        codeparser = Gst.ElementFactory.make("mpeg4videoparse", "mpeg4-parser")
+        if not codeparser:
+            sys.stderr.write(" Unable to create code parser \n")
+
+        print("Creating Container \n")
+        container = Gst.ElementFactory.make("qtmux", "qtmux")
+        if not container:
+            sys.stderr.write(" Unable to create code parser \n")
+
+        print("Creating Sink \n")
+        sink2 = Gst.ElementFactory.make("filesink", "filesink")
+        if not sink:
+            sys.stderr.write(" Unable to create file sink \n")
+
+        sink2.set_property("location", "./out.mp4")
+        sink2.set_property("sync", 1)
+        sink2.set_property("async", 0)
+    # Finished Gst file sink streams
+
     source.set_property('bufapi-version', True)
-
     caps_nvvidconv_src.set_property('caps', Gst.Caps.from_string('video/x-raw(memory:NVMM), width=1280, height=720'))
-
+    
+    # Define Streammux
     streammux.set_property('width', 1280)
     streammux.set_property('height', 720)
     streammux.set_property('batch-size', 1)
     streammux.set_property('batched-push-timeout', 4000000)
     streammux.set_property('live-source',1) # Added for CSI
-    #streammux.set_property('buffer-pool-size', 4) # TODO Find out if this helps
+
 
     
 
@@ -446,7 +466,6 @@ def main(args):
             tracker_display_tracking_id = config.getint('tracker', key)
             tracker.set_property('display-tracking-id',tracker_display_tracking_id)
 
-
     print("Adding elements to Pipeline \n")
     pipeline.add(source)
     pipeline.add(nvvidconv_src)
@@ -457,6 +476,10 @@ def main(args):
     pipeline.add(nvvidconv)
     pipeline.add(nvosd)
     pipeline.add(sink)
+    pipeline.add(tee)
+    pipeline.add(queue2)
+    pipeline.add()
+
     if is_aarch64():
         pipeline.add(transform)
 
@@ -471,21 +494,26 @@ def main(args):
     srcpad = caps_nvvidconv_src.get_static_pad("src")
     if not srcpad:
         sys.stderr.write(" Unable to get source pad of source \n")
+
     srcpad.link(sinkpad)
     streammux.link(pgie)
     pgie.link(tracker)
     tracker.link(nvvidconv)
     nvvidconv.link(nvosd)
+    
+
+
     if is_aarch64():
         nvosd.link(transform)
         transform.link(sink)
     else:
         nvosd.link(sink)
-
+    
+    
+        
 
     # create and event loop and feed gstreamer bus mesages to it
     loop = GObject.MainLoop()
-
     bus = pipeline.get_bus()
     bus.add_signal_watch()
     bus.connect ("message", bus_call, loop)

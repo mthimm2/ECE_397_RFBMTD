@@ -14,6 +14,9 @@ from common.bus_call import bus_call
 
 import pyds
 
+from uart_jetson import *
+from battery_jetson import *
+
 # Eric: Set the class IDs for the primary neural net
 PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
@@ -21,6 +24,21 @@ PGIE_CLASS_ID_PERSON = 2
 PGIE_CLASS_ID_ROADSIGN = 3
 past_tracking_meta = [0]
 
+# History arrays for the past LCR detections
+
+# (and/or dictionary)
+history_dict = {
+    '''
+    'object_id': 
+    {
+        "object_width" : float,
+        "num_appearances" : int,
+        "change_based_on_width" : float
+    }
+    '''
+}
+
+l_past, c_past, r_past = []
 
 def osd_sink_pad_buffer_probe(pad, info, u_data):
     frame_number = 0
@@ -70,6 +88,17 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
     # These numbers reflect that fact That we're looking behind us. Hence right is on the left of the frame.
     RIGHT = (0, STANDARD_FRAME_WIDTH / 3)
     CENTER = (STANDARD_FRAME_WIDTH / 3, 2 * (STANDARD_FRAME_WIDTH / 3))
+    
+    # Constants that represent when a vehicle is close, medium, or far away.
+    # Meant to line up with the coefficients that we obtain from detection processing below.
+    CLOSE_COEFF = 260
+    MED_COEFF = 180
+    FAR_COEFF = 130
+
+    # Initialize UART_Jetson Object
+    # Enables serial at a baudrate of 9600
+    # TODO: check serial_port settings (bytesize)
+    uart_jetson_object = UART_Jetson()
 
     #[frame zero, frame one]
 
@@ -102,7 +131,7 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
 
                 '''Could this cause pipeline issues if we try to cast the same thing twice?'''
                 # Gets the predicted direction of a given object within the frame
-                obj_direction = pyds.NvDsAnalyticsObjInfo.cast(l_obj.data).dirStatus
+                # obj_direction = pyds.NvDsAnalyticsObjInfo.cast(l_obj.data).dirStatus
 
             except StopIteration:
                 break
@@ -113,90 +142,89 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
             except StopIteration:
                 break
 
+
             # Dive through casts to get the object's bounding box top left vertex, width, and height?
-            #obj_bb_coords = pyds.NvBbox_Coords.cast(pyds.NvDsComp_BboxInfo.cast(obj_meta.tracker_bbox_info))
             obj_bb_coords = obj_meta.tracker_bbox_info.org_bbox_coords
+
+            # Used to determine whether or not an object is approaching or receding in frame
+            obj_bb_area = obj_bb_coords.height * obj_bb_coords.width
 
             # Assuming the above is correct, construct the bb for this object.
             obj_tlv = (obj_bb_coords.left, obj_bb_coords.top)
-            obj_brv = (obj_bb_coords.left + obj_bb_coords.width, obj_bb_coords.top - obj_bb_coords.height)
+            obj_brv = (obj_bb_coords.left + obj_bb_coords.width, obj_bb_coords.top + obj_bb_coords.height)
             obj_center_coords = ((obj_tlv[0] + obj_brv[0]) / 2, (obj_tlv[1] + obj_brv[1]) / 2)
 
             # For the purpose of object distance calculation and position, we care mostly about bb width and bb center location
-            info_tuple = (obj_bb_coords.width, obj_center_coords, obj_meta.object_id)
+            info_tuple = (obj_bb_coords.width, obj_center_coords, obj_bb_area, obj_meta.object_id)
 
-            # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame
-            '''
-                The away value assumes that the dirStatus field could have such a value.
-                No concrete examples were shown for what directions are possible.
-            '''
-            if obj_direction is not 'away':
+            # Initialize the object and insert it into the dictionary if not already provided
+            if obj_meta.object_id not in history_dict:
+                history_dict[obj_meta.object_id]['delta_w'] = 0
+                history_dict[obj_meta.object_id]['delta_h'] = 0
+                history_dict[obj_meta.object_id]['direction'] = None
+                history_dict[obj_meta.object_id]['width'] = obj_bb_coords.width
+                history_dict[obj_meta.object_id]['height'] = obj_bb_coords.height
+                history_dict[obj_meta.object_id]['tlv'] = obj_tlv
+                history_dict[obj_meta.object_id]['brv'] = obj_brv
+                
+            else:
+                history_dict[obj_meta.object_id]['delta_w'] = history_dict[obj_meta.object_id]['width'] - obj_bb_coords.width
+                history_dict[obj_meta.object_id]['delta_h'] = history_dict[obj_meta.object_id]['height'] - obj_bb_coords.height
+                history_dict[obj_meta.object_id]['direction'] = 'left' if obj_tlv[0] > history_dict[obj_meta.object_id]['tlv'][0] else 'right' if obj_tlv[0] != history_dict[obj_meta.object_id]['tlv'][0] else None
+                history_dict[obj_meta.object_id]['width'] = obj_bb_coords.width
+                history_dict[obj_meta.object_id]['height'] = obj_bb_coords.height
+                history_dict[obj_meta.object_id]['tlv'] = obj_tlv
+                history_dict[obj_meta.object_id]['brv'] = obj_brv
+
+            # If an object is determined to be approaching us, we allow it to be placed into the 
+            # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame            
+            if history_dict[info_tuple[2]]['delta'] >= 0:
                 if obj_center_coords[0] < RIGHT[1]:
                     right_det.append(info_tuple)
-                elif obj_center_coords >= CENTER[0] and obj_center_coords < CENTER[1]:
+                elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
                     center_det.append(info_tuple)
                 else:
                     left_det.append(info_tuple)
-            
-        '''Once we see these working, we can make this a function, since it's blatant copy and paste for each list'''
-        # This variable is taller than the frame, meaning the center of any bb must be below it
-        # This allows us to gradually look for the minimum bb center y coord in each list
-        Y_MIN = 721
-        l_min_buff, cent_min_buff, r_min_buff = [], [], []
-        for info_t in left_det:
 
-            # If the y coord of a bb's center is strictly lt Y_MIN, it must be closer by our standard
-            # Therefore, we can clear the list of all other entries and put the new lowest into the list
-            if info_t[1][1] < Y_MIN:
-                l_min_buff.clear()
-                l_min_buff.append(info_t)
-                Y_MIN = info_t[1][1]
-            
-            # We have to be careful of objects who's bbs are at a similar y coordinate, but aren't actually equidistant in reality
-            # A car that's far away, but in the center of a frame may have a similar bb center coord to a car that's near to us and in the center of the frame
-            # So we need to have a window of similarity in case we run into this situation
-            elif Y_MIN - info_t[1][1] <= 0.1 * Y_MIN:
-                l_min_buff.append(info_t)
-            else:
-                pass
+            # Clean out the history dictionary of all of the objects that were moving away.
+            for key, value in history_dict.items():
+                if value['delta'] < 0:
+                    history_dict.pop(key)
 
-        # Center segment min y coord
-        for info_t in center_det:
-            
-            if info_t[1][1] < Y_MIN:
-                cent_min_buff.clear()
-                cent_min_buff.append(info_t)
-                Y_MIN = info_t[1][1]
 
-            elif Y_MIN - info_t[1][1] <= 0.1 * Y_MIN:
-                cent_min_buff.append(info_t)
-            
-            else:
-                pass
+        '''
+            Need edge case handling for passing on left/right
+            if tlv is within so much distance of the left side of the frame (cyclist's right) or the brv is within so much distance of the right side of the frame (cyclist's left),
+            we wanna consider it to be bigger.
+        '''
 
-        # Right segment min y coord
-        for info_t in right_det:
-    
-            if info_t[1][1] < Y_MIN:
-                r_min_buff.clear()
-                r_min_buff.append(info_t)
-                Y_MIN = info_t[1][1]
-            
-            elif Y_MIN - info_t[1][1] <= 0.1 * Y_MIN:
-                r_min_buff.append(info_t)
+        # Cyclist's left side [object is passing close left (cyclist rear POV)]
+        if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
+            pass
+            '''
+                for item in left_det:
+                    if item[3] == obj_meta.object_id:
 
-            else:
-                pass
+            '''
+
+        # Cyclist's right side [object is passing close right (cyclist rear POV)]
+        elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
+            pass
+
+        else:
+            # object is not passing
+            pass
 
         # Determine closes object in each frame
-        l_max_width = max([info_t[0] for info_t in l_min_buff]) if len(l_min_buff) > 0 else 0
-        c_max_width = max([info_t[0] for info_t in cent_min_buff]) if len(cent_min_buff) > 0 else 0
-        r_max_width = max([info_t[0] for info_t in r_min_buff]) if len(r_min_buff) > 0 else 0
+        l_max_width = max([info_t[0] for info_t in left_det])   if len(left_det)    > 0 else 0
+        r_max_width = max([info_t[0] for info_t in right_det])  if len(right_det)   > 0 else 0
+        c_max_width = max([info_t[0] for info_t in center_det]) if len(center_det)  > 0 else 0
 
         '''
             Do we need to have any special considerations for objects not in the center segment?
             Is this where we make use of the distance coefficient to help compensate for the fish-eyeing?
         '''
+        
         # Ratio of bb width to width of the frame
         # Serves as a rudimentary form of how close an object is
         l_coeff = l_max_width / STANDARD_FRAME_WIDTH
@@ -204,8 +232,23 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         c_coeff = c_max_width / STANDARD_FRAME_WIDTH
 
         # Closest per segment known here
-            # Update FDU
 
+        # FDU Code:
+        
+        l_data  = EncodeDistanceData(l_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
+        c_data  = EncodeDistanceData(c_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
+        r_data  = EncodeDistanceData(r_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
+
+        # Battery functions 
+        # Battery needs to be updated with code form b
+
+        # Is the status LED for the battery?
+        # if so then update the information scheme as needed
+        o_data   = f"0{bat}0"   # status (0-1), battery (0-3), setup (0-1)
+
+        # Send computed data to the FDU
+        uart_jetson_object.send(l_data + c_data + r_data + o_data)
+        
         ''' 
             
             Integration ends goes here

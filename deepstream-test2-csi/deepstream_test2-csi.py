@@ -18,7 +18,7 @@
 ################################################################################
 
 
-from asyncio.windows_utils import pipe
+
 import sys
 #sys.path.append('../')
 # Changed to absolute path
@@ -315,7 +315,7 @@ def main(args):
     #     sys.stderr.write(" Unable to create Nvv4l2 Decoder \n")
 
 
-    # Source element for csi camera
+    # Source element for csi camera 
     print("Creating Source \n ")
     source = Gst.ElementFactory.make("nvarguscamerasrc", "src-elem")
     if not source:
@@ -346,6 +346,7 @@ def main(args):
     if not tracker:
         sys.stderr.write(" Unable to create tracker \n")
 
+    # Use Converter to convert from NV12 to RGBA as required by nvosd
     nvvidconv = Gst.ElementFactory.make("nvvideoconvert", "convertor")
     if not nvvidconv:
         sys.stderr.write(" Unable to create nvvidconv \n")
@@ -355,11 +356,42 @@ def main(args):
     if not nvosd:
         sys.stderr.write(" Unable to create nvosd \n")
 
+
+    # Define a Tee to branch the Queue for Recording and one for OSD
+    tee = Gst.ElementFactory.make("tee","nvsink-tee")
+    if not tee:
+        sys.stderr.write(" Unable to create nvsink-tee\n")
+    tee_src=tee.get_request_pad('src_%u')
+    if not tee_src:
+        sys.stderr.write(" Unable to create tee src pad\n")
+
     # Finally render the osd output using 'queue for jetson pref boost.
-    if is_aarch64():
-        transform = Gst.ElementFactory.make("queue", "queue")
+    # TODO Change to be able to handle headless mode.
+    queue_osd = Gst.ElementFactory.make("queue", "queue_osd")
+
+    # Define seperate queue so that each stream can flow independently. required by tee
+    queue_file = Gst.ElementFactory.make("queue","nvtee-queue2")
+    if not queue_file:
+        sys.stderr.write(" Unable to create nvtee-queue2\n")
     
-    # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoberlaysink
+    # Create file encoder for video file save. 
+    x264enc = Gst.ElementFactory.make("x264enc", "h264 encoder")
+    if not x264enc:
+        sys.stderr.write(" Unable to create x264enc\n")
+    x264enc.set_property('bitrate',400000)
+
+    container = Gst.ElementFactory.make("qtmux","muxer")
+    if not container:
+        sys.stderr.write(" Unable to create qtmux\n")
+
+    filesink=Gst.ElementFactory.make("filesink","filesink")
+    if not filesink:
+        sys.stderr.write(" Unable to create filesink\n")
+    filesink.set_property("location","/home/team3/Videos/Video_Out/outputvideotest.mp4")
+    filesink.set_property("sync","1")
+    filesink.set_property("async","0")
+
+    # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
     print("Creating EGLSink \n")
     sink = Gst.ElementFactory.make("nvoverlaysink", "nvvideo-renderer")
     sink.set_property('sync', 0)
@@ -367,56 +399,55 @@ def main(args):
     sink.set_property("overlay-y",360) #360
     sink.set_property("overlay-w",960) #720
     sink.set_property("overlay-h",480) #360
-
     if not sink:
         sys.stderr.write(" Unable to create egl sink \n")
 
-    # Define file sink Gst streams:
-    if RECORD_ON:
-        tee = Gst.ElementFactory.make("tee","nvsink-tee")
-        if not tee:
-            sys.stderr.write(" Unable to create nvsink-tee\n")
+    # # Define file sink Gst streams:
+    # if RECORD_ON:
+    #     tee = Gst.ElementFactory.make("tee","nvsink-tee")
+    #     if not tee:
+    #         sys.stderr.write(" Unable to create nvsink-tee\n")
         
-        queue2 = Gst.ElementFactory.make("queue","nvtee-queue2")
-        if not queue2:
-            sys.stderr.write(" Unable to create nvtee-queue2\n")
+    #     queue2 = Gst.ElementFactory.make("queue","nvtee-queue2")
+    #     if not queue2:
+    #         sys.stderr.write(" Unable to create nvtee-queue2\n")
 
 
-        # unknown if needed 
-        nvvidconv2 = Gst.ElementFactory.make("nvvideoconvert", "convertor2")
-        if not nvvidconv2:
-            sys.stderr.write(" Unable to create nvvidconv2 \n")
-        # Dont know what caps or caps filter is
-        capsfilter = Gst.ElementFactory.make("capsfilter", "capsfilter")
-        if not capsfilter:
-            sys.stderr.write(" Unable to create capsfilter \n")
+    #     # unknown if needed 
+    #     nvvidconv2 = Gst.ElementFactory.make("nvvideoconvert", "convertor2")
+    #     if not nvvidconv2:
+    #         sys.stderr.write(" Unable to create nvvidconv2 \n")
+    #     # Dont know what caps or caps filter is
+    #     capsfilter = Gst.ElementFactory.make("capsfilter", "capsfilter")
+    #     if not capsfilter:
+    #         sys.stderr.write(" Unable to create capsfilter \n")
 
-        caps = Gst.Caps.from_string("video/x-raw, format=I420")
-        capsfilter.set_property("caps", caps)
+    #     caps = Gst.Caps.from_string("video/x-raw, format=I420")
+    #     capsfilter.set_property("caps", caps)
 
-        encoder = Gst.ElementFactory.make("nvv4l2h264enc", "encoder")
-        if not encoder:
-            sys.stderr.write(" Unable to create encoder \n")
-        encoder.set_property("bitrate", 2000000)
+    #     encoder = Gst.ElementFactory.make("nvv4l2h264enc", "encoder")
+    #     if not encoder:
+    #         sys.stderr.write(" Unable to create encoder \n")
+    #     encoder.set_property("bitrate", 2000000)
 
-        print("Creating Code Parser \n")
-        codeparser = Gst.ElementFactory.make("mpeg4videoparse", "mpeg4-parser")
-        if not codeparser:
-            sys.stderr.write(" Unable to create code parser \n")
+    #     print("Creating Code Parser \n")
+    #     codeparser = Gst.ElementFactory.make("mpeg4videoparse", "mpeg4-parser")
+    #     if not codeparser:
+    #         sys.stderr.write(" Unable to create code parser \n")
 
-        print("Creating Container \n")
-        container = Gst.ElementFactory.make("qtmux", "qtmux")
-        if not container:
-            sys.stderr.write(" Unable to create code parser \n")
+    #     print("Creating Container \n")
+    #     container = Gst.ElementFactory.make("qtmux", "qtmux")
+    #     if not container:
+    #         sys.stderr.write(" Unable to create code parser \n")
 
-        print("Creating Sink \n")
-        sink2 = Gst.ElementFactory.make("filesink", "filesink")
-        if not sink:
-            sys.stderr.write(" Unable to create file sink \n")
+    #     print("Creating Sink \n")
+    #     sink2 = Gst.ElementFactory.make("filesink", "filesink")
+    #     if not sink:
+    #         sys.stderr.write(" Unable to create file sink \n")
 
-        sink2.set_property("location", "./out.mp4")
-        sink2.set_property("sync", 1)
-        sink2.set_property("async", 0)
+    #     sink2.set_property("location", "./out.mp4")
+    #     sink2.set_property("sync", 1)
+    #     sink2.set_property("async", 0)
     # Finished Gst file sink streams
 
     source.set_property('bufapi-version', True)
@@ -466,6 +497,7 @@ def main(args):
             tracker_display_tracking_id = config.getint('tracker', key)
             tracker.set_property('display-tracking-id',tracker_display_tracking_id)
 
+    # Define the pipeline 
     print("Adding elements to Pipeline \n")
     pipeline.add(source)
     pipeline.add(nvvidconv_src)
@@ -477,11 +509,14 @@ def main(args):
     pipeline.add(nvosd)
     pipeline.add(sink)
     pipeline.add(tee)
-    pipeline.add(queue2)
-    pipeline.add()
+    pipeline.add(x264enc)
+    
+    pipeline.add(queue_file)
+    pipeline.add(container)
+    pipeline.add(filesink)
 
     if is_aarch64():
-        pipeline.add(transform)
+        pipeline.add(queue_osd)
 
     # we link the elements together
     print("Linking elements in the Pipeline \n")
@@ -491,6 +526,7 @@ def main(args):
     sinkpad = streammux.get_request_pad("sink_0")
     if not sinkpad:
         sys.stderr.write(" Unable to get the sink pad of streammux \n")
+
     srcpad = caps_nvvidconv_src.get_static_pad("src")
     if not srcpad:
         sys.stderr.write(" Unable to get source pad of source \n")
@@ -500,12 +536,19 @@ def main(args):
     pgie.link(tracker)
     tracker.link(nvvidconv)
     nvvidconv.link(nvosd)
+    nvosd.link(tee)
+    tee.link(queue_osd)
     
-
+    
+    # File Record Pipeline
+    tee.link(queue_file) 
+    queue_file.link(x264enc)
+    x264enc.link(container)
+    container.link(filesink)
 
     if is_aarch64():
-        nvosd.link(transform)
-        transform.link(sink)
+        #nvosd.link(queue)
+        queue_osd.link(sink)
     else:
         nvosd.link(sink)
     

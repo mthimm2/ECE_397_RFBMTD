@@ -253,26 +253,49 @@ void ledCntl()
 
   else {;} // do nothing
 
-  // BATTERY LED
-  if(receivedChars[10] == '3') 
+  /* STATUS LED */
+  if(receivedChars[6] == '1') 
+  {  
+    Serial.print("[Status ON] ");
+    // digitalWrite(sts, HIGH);
+  }
+
+  else 
+  {
+    Serial.print("[Status OFF] ");
+    // digitalWrite(sts, LOW);
+  }
+
+  /* BATTERY LED */
+  if(receivedChars[7] == '3') 
   {
     Serial.print("[bat >75%] ");
     blink_num_times(4, bat);
 
-  } else if (receivedChars[10] == '2') {
+  } 
+  
+  else if (receivedChars[7] == '2') 
+  {
     Serial.print("[bat >50%] ");
     blink_num_times(3, bat);
 
-  } else if (receivedChars[10] == '1') {
+  } 
+  
+  else if (receivedChars[7] == '1') 
+  {
     Serial.print("[bat >25%] ");
     blink_num_times(2, bat);
 
-  } else {
+  } 
+  
+  else 
+  {
     Serial.print("[bat <25%] ");
     blink_num_times(1, bat);
   }  
 
-  // SETUP
+
+  /* SETUP */
   if(receivedChars[0] = '1' && receivedChars[1] = '1' && receivedChars[2] = '1' && receivedChars[3] = '1' && receivedChars[4] = '1' && receivedChars[5] = '1' && receivedChars[6] = '1' && receivedChars[7] = '1') 
   {
       Serial.print("[Starting Setup] ");
@@ -284,4 +307,6 @@ void ledCntl()
       Serial.print("[Setup is OFF] ");
 
   }
+
+
 }

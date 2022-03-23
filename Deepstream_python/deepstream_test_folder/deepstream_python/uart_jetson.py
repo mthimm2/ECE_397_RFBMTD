@@ -70,14 +70,18 @@ class UART_Jetson():
 # Function to determine which LED to turn on
 def EncodeDistanceData(distance, close_coeff, med_coeff, far_coeff):
     data = ""
+
     if distance > close_coeff:
-        data += "11"
+        data = "11"
 
     elif distance > med_coeff:
-        data += "10"
+        data = "10"
 
     elif distance > far_coeff:
-        data += "01"  
+        data = "01"
+
+    else:
+        data = "00"
 
     return data
 

@@ -100,6 +100,9 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
     # TODO: check serial_port settings (bytesize)
     uart_transmission = UART_Jetson()
 
+    # SETUP: FDU lamp check 
+    uart_transmission.send("11111111")
+
     #[frame zero, frame one]
 
     # Eric: I think L frame contains the current frame metadata for the objects detected and the objects being tracked.

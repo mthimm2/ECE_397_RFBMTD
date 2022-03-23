@@ -61,29 +61,53 @@ class UART_Jetson():
 
 
 
+# Final FDU Implementation
+
 '''
-    Implement in deepstream_test2-csi.py
+  L | C | R | S | B | Other Function
+  0 | 1 | 2 | 3 | 4 |
+  L, C, R  => 0, 1, 2, 3     [0=off, 1=close, 2=med, 3=far]
+  S => 0, 1                  [0=off, 1=on]
+  B => 0, 1, 2, 3, 4         [0=off, 1 : < 25, 2 : >25,  3 : >50, 4 : >75]
+  Other Functions => TBD
 '''
 
-# Max
-# 00 = off, 01 = far, 10 = med, 11 = close
-# Function to determine which LED to turn on
 def EncodeDistanceData(distance, close_coeff, med_coeff, far_coeff):
     data = ""
 
     if distance > close_coeff:
-        data = "11"
+        data = "1"
 
     elif distance > med_coeff:
-        data = "10"
+        data = "2"
 
     elif distance > far_coeff:
-        data = "01"
+        data = "3"
 
     else:
-        data = "00"
+        data = "0"
 
     return data
+
+# Max
+# 00 = off, 01 = far, 10 = med, 11 = close
+# Function to determine which LED to turn on
+# def EncodeDistanceData(distance, close_coeff, med_coeff, far_coeff):
+#     data = ""
+
+#     if distance > close_coeff:
+#         data = "11"
+
+#     elif distance > med_coeff:
+#         data = "10"
+
+#     elif distance > far_coeff:
+#         data = "01"
+
+#     else:
+#         data = "00"
+
+#     return data
 
 
 # Eric

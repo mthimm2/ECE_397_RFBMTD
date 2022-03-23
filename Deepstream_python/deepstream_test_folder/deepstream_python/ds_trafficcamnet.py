@@ -24,19 +24,8 @@ PGIE_CLASS_ID_PERSON = 2
 PGIE_CLASS_ID_ROADSIGN = 3
 past_tracking_meta = [0]
 
-# History arrays for the past LCR detections
-
-# (and/or dictionary)
-history_dict = {
-    '''
-    'object_id': 
-    {
-        "object_width" : float,
-        "num_appearances" : int,
-        "change_based_on_width" : float
-    }
-    '''
-}
+# History dictionary for the past LCR detections
+history_dict = {}
 
 l_past, c_past, r_past = []
 
@@ -55,18 +44,6 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         print("Unable to get GstBuffer ")
         return
 
-    ''' 
-        
-        Integration goes here
-        TODO:
-            Closest object per segment (Width of BB as first metric. Then, if two objects are in same segment, compare BB center Y coords)
-                Distance function based on collected data (Width of obj in center segment of frame)
-                FDU LED Control 
-                    Includes system status LEDs
-            Accelerometer UART tie in for cutting off/saving ride recording
-            Other stuff TBD
-    '''
-
     # Get the batch of metadata from the buffer. Do not touch.
     batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))
 
@@ -76,13 +53,11 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         object_id: int, Unique ID for tracking the object. @ref UNTRACKED_OBJECT_ID indicates the object has not been tracked
         detector_bbox_info: NvDsComp_BboxInfo, Holds a structure containing bounding box parameters of the object when detected by detector
         tracker_bbox_info: NvDsComp_BboxInfo, Holds a structure containing bounding box coordinates of the object when processed by tracker
-
-    NvDsVehicleObject
     '''
 
     # We know that each frame coming in has the same dimensions for 720p capture
     STANDARD_FRAME_WIDTH = 1280
-    STANDARD_FRAME_HEIGHT = 720
+    # STANDARD_FRAME_HEIGHT = 720
 
     # This lets us statically define the LCR regions
     # These numbers reflect that fact That we're looking behind us. Hence right is on the left of the frame.
@@ -96,14 +71,10 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
     FAR_COEFF = 130
 
     # Initialize UART_Jetson Object
-    # Enables serial at a baudrate of 9600
-    # TODO: check serial_port settings (bytesize)
     uart_transmission = UART_Jetson()
 
     # battery status (hold the last known battery level)
     prev_b_data = ""
-
-    #[frame zero, frame one]
 
     # Eric: I think L frame contains the current frame metadata for the objects detected and the objects being tracked.
     # Get the list of frame meta objects from the batch meta object.
@@ -132,10 +103,6 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
                 # Cast l_obj.data to pyds.NvDsObjectMeta
                 obj_meta = pyds.NvDsObjectMeta.cast(l_obj.data)
 
-                '''Could this cause pipeline issues if we try to cast the same thing twice?'''
-                # Gets the predicted direction of a given object within the frame
-                # obj_direction = pyds.NvDsAnalyticsObjInfo.cast(l_obj.data).dirStatus
-
             except StopIteration:
                 break
             obj_counter[obj_meta.class_id] += 1
@@ -144,7 +111,6 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
                 l_obj = l_obj.next
             except StopIteration:
                 break
-
 
             # Dive through casts to get the object's bounding box top left vertex, width, and height?
             obj_bb_coords = obj_meta.tracker_bbox_info.org_bbox_coords
@@ -194,30 +160,6 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
                 if value['delta'] < 0:
                     history_dict.pop(key)
 
-
-        '''
-            Need edge case handling for passing on left/right
-            if tlv is within so much distance of the left side of the frame (cyclist's right) or the brv is within so much distance of the right side of the frame (cyclist's left),
-            we wanna consider it to be bigger.
-        '''
-
-        # # Cyclist's left side [object is passing close left (cyclist rear POV)]
-        # if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
-        #     pass
-        #     '''
-        #         for item in left_det:
-        #             if item[3] == obj_meta.object_id:
-
-        #     '''
-
-        # # Cyclist's right side [object is passing close right (cyclist rear POV)]
-        # elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
-        #     pass
-
-        # else:
-        #     # object is not passing
-        #     pass
-
         # Determine closes object in each frame
         l_max_width = max([info_t[0] for info_t in left_det])   if len(left_det)    > 0 else 0
         r_max_width = max([info_t[0] for info_t in right_det])  if len(right_det)   > 0 else 0
@@ -234,12 +176,15 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         r_coeff = r_max_width / STANDARD_FRAME_WIDTH
         c_coeff = c_max_width / STANDARD_FRAME_WIDTH
 
-        # Closest per segment known here
-
-        # FDU Code:
-        # 00 = off, 01 = far, 10 = med, 11 = close
-        # LL | CC | RR | SB
-        # 01 | 23 | 45 | 67
+        '''
+        FDU Code:
+            L | C | R | S | B | Other Function
+            0 | 1 | 2 | 3 | 4 |
+            L, C, R  => 0, 1, 2, 3     [0=off, 1=close, 2=med, 3=far]
+            S => 0, 1                  [0=off, 1=on]
+            B => 0, 1, 2, 3, 4         [0=off, 1 : < 25, 2 : >25,  3 : >50, 4 : >75]
+            Other Functions => TBD
+        '''
 
         l_data  = EncodeDistanceData(l_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
         c_data  = EncodeDistanceData(c_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
@@ -269,13 +214,11 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         # Overwrite left or right detection data sent from Jetson to Arduino Micro
         # Cyclist's left side [object is passing close left (cyclist rear POV)]
         if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
-            uart_transmission.send("11" + c_data + r_data + o_data)
-            # uart_transmission.send("100" + c_data + r_data + o_data)
+            uart_transmission.send("1" + c_data + r_data + o_data)
 
         # Cyclist's right side [object is passing close right (cyclist rear POV)]
         elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
-            uart_transmission.send(l_data + c_data + "11" + o_data)
-            # uart_transmission.send(l_data + c_data + "100" + o_data)
+            uart_transmission.send(l_data + c_data + "1" + o_data)
 
         else:
             # object is not passing
@@ -283,7 +226,6 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
 
         # Send computed data to the FDU
         uart_transmission.send(l_data + c_data + r_data + o_data)
-
 
         ''' 
             

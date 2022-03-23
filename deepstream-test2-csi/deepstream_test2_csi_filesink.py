@@ -20,6 +20,7 @@
 
 
 import sys
+import os
 #sys.path.append('../')
 # Changed to absolute path
 sys.path.append('/opt/nvidia/deepstream/deepstream-6.0/sources/deepstream_python_apps/apps')
@@ -34,6 +35,9 @@ from common.bus_call import bus_call
 
 import pyds
 
+# To Print The dot graph Gstreamer pipeline
+os.environ["GST_DEBUG_DUMP_DOT_DIR"] = "/tmp"
+os.putenv('GST_DEBUG_DUMP_DIR_DIR', '/tmp')
 
 # Debug Flags
 no_display = False
@@ -385,31 +389,33 @@ def main(args):
     if not queue_2:
         sys.stderr.write(" Unable to create queue_2\n")
    
-     # Use Converter to convert from NV12 to RGBA as required by nvosd
-    nvvidconv_post = Gst.ElementFactory.make("nvvideoconvert", "convertor_post")
-    if not nvvidconv_post:
-        sys.stderr.write(" Unable to create post nvvidconv \n")
 
+    # Use Converter to convert from NV12 to RGBA as required by nvosd
+    nvvidconv_postosd = Gst.ElementFactory.make("nvvideoconvert", "convertor_postosd")
+    if not nvvidconv_postosd:
+        sys.stderr.write(" Unable to create nvvidconv_postosd \n")
 
-      # Caps for NVMM and resolution scaling
-    capsfilter = Gst.ElementFactory.make("capsfilter", "nvmm_caps")
-    if not capsfilter:
-        sys.stderr.write(" Unable to create capsfilter \n")
+    # Create a caps filter for NVMM and resolution scaling
+    caps = Gst.ElementFactory.make("capsfilter", "filter")
+    caps.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM), format=I420"))
 
-    caps = Gst.Caps.from_string("video/x-raw, format=I420")
-    capsfilter.set_property("caps",caps)
+    # Make the h264 encoder
+    encoder = Gst.ElementFactory.make("nvv4l2h264enc", "h264-encoder")
+    if not encoder:
+        sys.stderr.write(" Unable to create encoder")
+    encoder.set_property('bitrate', 4000000)
+    if is_aarch64():
+        encoder.set_property('preset-level', 1)
+        encoder.set_property('insert-sps-pps', 1)
+        encoder.set_property('bufapi-version', 1)
 
-
-    # Create file encoder for video file save. Changed From nvv4l2h264enc to avenc_mpeg4 for testing debug
-    x264enc = Gst.ElementFactory.make("x264enc", "h264 encoder")
-    if not x264enc:
-        sys.stderr.write(" Unable to create x264enc\n")
-    x264enc.set_property('bitrate',400000)
-    #                                       changes from h264parse to mpeg4videoparse for debugging.  # FIXME h264 parser not working and will hold up the osd. Look into possible hangups in pipeline.
+    # Is this really needed? 
+    # changes from h264parse to mpeg4videoparse for debugging.  # FIXME h264 parser not working and will hold up the osd. Look into possible hangups in pipeline.
     vid_parser = Gst.ElementFactory.make("h264parse", "h264 parser")
     if not vid_parser:
         sys.stderr.write(" Unable to create parser\n")
 
+    # The pad and sink are request type so I probably need to request sink and src pads
     container = Gst.ElementFactory.make("qtmux","muxer")
     if not container:
         sys.stderr.write(" Unable to create qtmux\n")
@@ -561,10 +567,10 @@ def main(args):
     pipeline.add(sink)
     pipeline.add(transform)
     pipeline.add(tee)
-    pipeline.add(nvvidconv_post)
-    pipeline.add(x264enc)
+    pipeline.add(nvvidconv_postosd)
+    pipeline.add(encoder)
     pipeline.add(vid_parser)
-    pipeline.add(capsfilter)
+    #pipeline.add(capsfilter)
     pipeline.add(queue_1)
     pipeline.add(queue_2)
     pipeline.add(container)
@@ -593,40 +599,50 @@ def main(args):
     nvvidconv.link(nvosd)
     nvosd.link(tee)
 
+    # Notes (From Dev Forms):
+    # If you want to send video to multiple sinks (a display, and the network), You will have to add and link a tee element just before the encoder to split the pipeline 
+    # into two branches, add two queues 4 and link the queues to the tee by requesting pads 3 from the tee and linking them to the sink pads of the two queues you created. 
+    # You can’t just go tee.link(queue) because the pads don’t exist on tees until you request them 2. Then you can link() one queue to the encoder ,then the rest of the 
+    # rtsp elements as exists currently… and the other queue directly to a sink like nvoverlaysink. 
+    # I am not sure if any of Nvidia’s python examples use a tee like this, but you can search the sources 
+    # for “tee” and see if there is an existing example.
     #                                              ... --->[      Tee      ] -> ...
     # Define the source pads of the tee.  Remember it goes [sink ----> src1]
     #                                                      [sink ----> src2]
     tee_src1 = tee.get_request_pad('src_%u')
     print("Obtained request pad {} for stream branch".format(tee_src1.get_name()))
-
     tee_src2 = tee.get_request_pad('src_%u')
     print("Obtained request pad {} for stream branch".format(tee_src2.get_name()))
-
     if not tee_src1 or not tee_src2:
         sys.stderr.write(" Unable to create tee src 1 or 2 \n")
 
-    # Link and create sink pads for queue 1 and queue 2
-    sink_pad = queue_1.get_static_pad("sink")
-    tee_src1.link(sink_pad)
-    sink_pad = queue_2.get_static_pad("sink")
-    tee_src2.link(sink_pad)
-
+    # Link tee source pad to queue sink pad and create sink pads for queue 1 and queue 2
+    # --> [sink   tee   src] --> [sink  queue  src] -->
+    sink_pad_queue_1 = queue_1.get_static_pad("sink")
+    tee_src1.link(sink_pad_queue_1)
+    sink_pad_queue_2 = queue_2.get_static_pad("sink")
+    tee_src2.link(sink_pad_queue_2)
+    if not sink_pad_queue_1 or not sink_pad_queue_2:
+        sys.stderr.write(" Unable to create sink pads of queue 1 or queue 2 \n")
     
 
-    # File Record Pipeline
+    # File Record Pipeline linking
     #tee_src2.link(queue_2)
-    queue_2.link(nvvidconv_post)
-    nvvidconv_post.link(capsfilter)
-    capsfilter.link(x264enc)
-    x264enc.link(vid_parser)
+    # IDK if i need the commented code below ,might need to rewrite.3
+    # TODO rewrite linking
+    # queue_2.link(nvvidconv_post)
+    # nvvidconv_post.link(capsfilter)
+    # capsfilter.link(x264enc)
+    # x264enc.link(vid_parser)
 
-    sinkpad1=container.get_request_pad("video_0")
-    if not sinkpad1:
-        sys.stderr.write("Unable to create sink pad of qtmux \n")
-    srcpad1=vid_parser.get_static_pad("src")
-    if not srcpad1:
+    # Request sink pad for container qtmux
+    container_sink=container.get_request_pad("video_0")
+    if not container_sink:
+        sys.stderr.write("Unable to create sink pad of container \n")
+    parser_src = vid_parser.get_static_pad("src")
+    if not parser_src:
         sys.stderr.write("Unable to get src pad from video parser \n")
-    srcpad1.link(sinkpad1)
+    parser_src.link(container_sink)
     container.link(filesink1)
 
 
@@ -645,8 +661,8 @@ def main(args):
     
     
     
-        
-
+    # Print the debug dot file for the Gst pipeline graph. Location /tmp/pipeline -created when program runs.
+    Gst.debug_bin_to_dot_file(pipeline, Gst.DebugGraphDetails.ALL, "pipeline")
     # create and event loop and feed gstreamer bus mesages to it
     loop = GObject.MainLoop()
     bus = pipeline.get_bus()

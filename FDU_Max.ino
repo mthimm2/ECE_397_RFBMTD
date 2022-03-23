@@ -9,7 +9,7 @@
 
 // Left: redL,yelL,grnL. Center: redM, yelM,grnM. Right: redR,yelR,grnR
 
-#define redL 6 
+#define redL 18
 #define redM 4
 #define redR 17
 #define yelL 8
@@ -44,7 +44,11 @@ void setup() {
     pinMode(sts,OUTPUT);
     pinMode(bat,OUTPUT);  
 
-    lampCheck();   
+    // Run a Lamp Check
+    lampCheck();
+
+    //Test the LED Lamps Individually
+    controlCheck();  
 }
 
 void loop() {
@@ -122,6 +126,54 @@ void recvWithStartEndMarkers() {
             recvInProgress = true;
         }
     }
+}
+
+void lampCheck() {
+  /* SETUP */
+  if(receivedChars[0] == '1' && receivedChars[1] == '1' && receivedChars[2] == '1' && receivedChars[3] == '1' && receivedChars[4] == '1' && receivedChars[5] == '1' && receivedChars[6] == '1' && receivedChars[7] == '1') 
+  {
+      Serial.print("[Starting Setup] ");
+      allOn();
+      delay(3000); // delay for 3 sec
+      allOff();
+
+  } 
+  
+  else {
+      Serial.print("[Setup is OFF] ");
+
+  }
+}
+
+void controlCheck() {
+  allOff();
+
+  // Turn on LEDs
+  digitalWrite(redL, HIGH);
+  delay(1000); // delay for 1 sec
+  digitalWrite(redM, HIGH);
+  delay(1000); // delay for 1 sec
+  digitalWrite(redR, HIGH);
+  delay(1000); // delay for 1 sec
+  digitalWrite(yelR, HIGH);
+  delay(1000); // delay for 1 sec
+  digitalWrite(yelM, HIGH);
+  delay(1000); // delay for 1 sec
+
+  digitalWrite(yelL, HIGH);
+  delay(1000); // delay for 1 sec
+  digitalWrite(grnL, HIGH);
+  delay(1000); // delay for 1 sec
+  digitalWrite(grnM, HIGH);
+  delay(1000); // delay for 1 sec
+  digitalWrite(grnR, HIGH);
+  delay(1000); // delay for 1 sec
+  digitalWrite(bat,  HIGH);
+  delay(1000); // delay for 1 sec
+  digitalWrite(sts,  HIGH);
+  delay(1000); // delay for 1 sec
+
+  allOff();
 }
 
 // Show receivedChars via serial monitor
@@ -296,21 +348,4 @@ void ledCntl()
     blink_num_times(1, bat);
   }  
 
-}
-
-void lampCheck() {
-  /* SETUP */
-  if(receivedChars[0] == '1' && receivedChars[1] == '1' && receivedChars[2] == '1' && receivedChars[3] == '1' && receivedChars[4] == '1' && receivedChars[5] == '1' && receivedChars[6] == '1' && receivedChars[7] == '1') 
-  {
-      Serial.print("[Starting Setup] ");
-      allOn();
-      delay(3000); // delay for 3 sec
-      allOff();
-
-  } 
-  
-  else {
-      Serial.print("[Setup is OFF] ");
-
-  }
 }

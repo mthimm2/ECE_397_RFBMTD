@@ -302,23 +302,25 @@ def main(args):
     if not pipeline:
         sys.stderr.write(" Unable to create Pipeline \n")
 
-    # # Source element for file input 
-    # sourceFile = Gst.ElementFactory.make("filesrc","file-source")
-    # if not sourceFile:
-    #     sys.stderr.write(" Unable to create File Source \n")
-    
-    # # Since the data format in the input file is elementary h264 stream,
-    # # we need a h264parser
-    # print("Creating H264Parser \n")
-    # h264parser = Gst.ElementFactory.make("h264parse", "h264-parser")
-    # if not h264parser:
-    #     sys.stderr.write(" Unable to create h264 parser \n")
-
-    # # Use nvdec_h264 for hardware accelerated decode on GPU
-    # print("Creating Decoder \n")
-    # decoder = Gst.ElementFactory.make("nvv4l2decoder", "nvv4l2-decoder")
-    # if not decoder:
-    #     sys.stderr.write(" Unable to create Nvv4l2 Decoder \n")
+    # TODO Implement File Input Inference
+    #    # Source element for reading from the file
+    #     print("Creating Source \n ")
+    #     source = Gst.ElementFactory.make("filesrc", "file-source")
+    #     if not source:
+    #         sys.stderr.write(" Unable to create Source \n")
+        
+    #     # Since the data format in the input file is elementary h264 stream,
+    #     # we need a h264parser
+    #     print("Creating H264Parser \n")
+    #     h264parser = Gst.ElementFactory.make("h264parse", "h264-parser")
+    #     if not h264parser:
+    #         sys.stderr.write(" Unable to create h264 parser \n")
+        
+    #     # Use nvdec_h264 for hardware accelerated decode on GPU
+    #     print("Creating Decoder \n")
+    #     decoder = Gst.ElementFactory.make("nvv4l2decoder", "nvv4l2-decoder")
+    #     if not decoder:
+    #         sys.stderr.write(" Unable to create Nvv4l2 Decoder \n")
 
     # Pipeline for camera element
     # nvarguscamerasrc -> nvvidconv -> caps_nvvidconv_src -> streammux -> pgie -> tracker -> nvvidconv -> nvosd -> tee -> -> 
@@ -369,14 +371,7 @@ def main(args):
     tee = Gst.ElementFactory.make("tee","nvsink-tee")
     if not tee:
         sys.stderr.write(" Unable to create nvsink-tee\n")
-    tee.set_property("num-src-pads", 2)
-    
-    
-
-
-
-
-
+     
 
     # Finally render the osd output using 'queue for jetson pref boost.
     # TODO Change to be able to handle headless mode.
@@ -423,8 +418,8 @@ def main(args):
     if not filesink1:
         sys.stderr.write(" Unable to create filesink\n")
     filesink1.set_property("location","/home/team3/Videos/Video_Out/outputvideotest.mp4")
-    filesink1.set_property("sync",0) # Was 1 ,Works with 0
-    filesink1.set_property("async",1)#was 0, works with 1
+    filesink1.set_property("sync",1) # Was 1 ,Works with 0
+    filesink1.set_property("async",0)#was 0, works with 1
 
     # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
     print("Creating EGLSink \n")
@@ -606,7 +601,7 @@ def main(args):
 
     tee_src2 = tee.get_request_pad('src_%u')
     print("Obtained request pad {} for stream branch".format(tee_src2.get_name()))
-    
+
     if not tee_src1 or not tee_src2:
         sys.stderr.write(" Unable to create tee src 1 or 2 \n")
 

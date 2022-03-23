@@ -36,7 +36,7 @@ import pyds
 
 
 # Debug Flags
-DISPLAY_ON = 1
+no_display = False
 RECORD_ON = True
 
 
@@ -327,7 +327,7 @@ def main(args):
         sys.stderr.write(" Unable to create nvvidconv_src \n")
 
     # Caps for NVMM and resolution scaling
-    caps_nvvidconv_src = Gst.ElementFactory.make("capsfilter", "nvmm_caps")
+    caps_nvvidconv_src = Gst.ElementFactory.make("capsfilter", "nvmm_caps2")
     if not caps_nvvidconv_src:
         sys.stderr.write(" Unable to create capsfilter \n")
 
@@ -361,35 +361,55 @@ def main(args):
     tee = Gst.ElementFactory.make("tee","nvsink-tee")
     if not tee:
         sys.stderr.write(" Unable to create nvsink-tee\n")
-    tee_src=tee.get_request_pad('src_%u')
-    if not tee_src:
-        sys.stderr.write(" Unable to create tee src pad\n")
-
+    
+    
     # Finally render the osd output using 'queue for jetson pref boost.
     # TODO Change to be able to handle headless mode.
-    queue_osd = Gst.ElementFactory.make("queue", "queue_osd")
+    queue_1 = Gst.ElementFactory.make("queue", "nvtee-queue")
+    if not queue_1:
+        sys.stderr.write(" Unable to create queue_1\n")
+    
 
     # Define seperate queue so that each stream can flow independently. required by tee
-    queue_file = Gst.ElementFactory.make("queue","nvtee-queue2")
-    if not queue_file:
-        sys.stderr.write(" Unable to create nvtee-queue2\n")
-    
-    # Create file encoder for video file save. 
+    queue_2 = Gst.ElementFactory.make("queue","nvtee-queue2")
+    if not queue_2:
+        sys.stderr.write(" Unable to create queue_2\n")
+   
+     # Use Converter to convert from NV12 to RGBA as required by nvosd
+    nvvidconv_post = Gst.ElementFactory.make("nvvideoconvert", "convertor_post")
+    if not nvvidconv_post:
+        sys.stderr.write(" Unable to create post nvvidconv \n")
+
+
+      # Caps for NVMM and resolution scaling
+    capsfilter = Gst.ElementFactory.make("capsfilter", "nvmm_caps")
+    if not capsfilter:
+        sys.stderr.write(" Unable to create capsfilter \n")
+
+    caps = Gst.Caps.from_string("video/x-raw, format=I420")
+    capsfilter.set_property("caps",caps)
+
+
+    # Create file encoder for video file save. Changed From nvv4l2h264enc to avenc_mpeg4 for testing debug
     x264enc = Gst.ElementFactory.make("x264enc", "h264 encoder")
     if not x264enc:
         sys.stderr.write(" Unable to create x264enc\n")
     x264enc.set_property('bitrate',400000)
+    #                                       changes from h264parse to mpeg4videoparse for debugging.  # FIXME h264 parser not working and will hold up the osd. Look into possible hangups in pipeline.
+    vid_parser = Gst.ElementFactory.make("h264parse", "h264 parser")
+    if not vid_parser:
+        sys.stderr.write(" Unable to create parser\n")
 
     container = Gst.ElementFactory.make("qtmux","muxer")
     if not container:
         sys.stderr.write(" Unable to create qtmux\n")
 
-    filesink=Gst.ElementFactory.make("filesink","filesink")
-    if not filesink:
+    filesink1=Gst.ElementFactory.make("filesink","filesink")
+    if not filesink1:
         sys.stderr.write(" Unable to create filesink\n")
-    filesink.set_property("location","/home/team3/Videos/Video_Out/outputvideotest.mp4")
-    filesink.set_property("sync","1")
-    filesink.set_property("async","0")
+    filesink1.set_property("location","/home/team3/Videos/Video_Out/outputvideotest.mp4")
+    filesink1.set_property("sync",0) # Was 1 ,Works with 0
+    filesink1.set_property("async",1)#was 0, works with 1
 
     # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
     print("Creating EGLSink \n")
@@ -402,6 +422,28 @@ def main(args):
     if not sink:
         sys.stderr.write(" Unable to create egl sink \n")
 
+    if (no_display):
+        print("Creating Fake Sink")
+        sink = Gst.ElementFactory.make("fakesink","fakesink")
+        if not sink:
+            sys.stderr.write("Unable to create fakesink \n")
+    else:
+        # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
+        print("Creating OverlaySink \n")
+        transform = Gst.ElementFactory.make("nvegltransform",  "nvegl-transform")
+        if not transform:
+            sys.stderr.write(" Unable to create nvelgtransform \n")
+            
+        sink = Gst.ElementFactory.make("nvoverlaysink", "nvvideo-renderer")
+        sink.set_property('sync', 0)
+        sink.set_property("overlay-x",0) # 0
+        sink.set_property("overlay-y",360) #360
+        sink.set_property("overlay-w",960) #720
+        sink.set_property("overlay-h",480) #360
+        if not sink:
+            sys.stderr.write(" Unable to create egl sink \n")
+
+    
     # # Define file sink Gst streams:
     # if RECORD_ON:
     #     tee = Gst.ElementFactory.make("tee","nvsink-tee")
@@ -508,15 +550,19 @@ def main(args):
     pipeline.add(nvvidconv)
     pipeline.add(nvosd)
     pipeline.add(sink)
+    pipeline.add(transform)
     pipeline.add(tee)
+    pipeline.add(nvvidconv_post)
     pipeline.add(x264enc)
-    
-    pipeline.add(queue_file)
+    pipeline.add(vid_parser)
+    pipeline.add(capsfilter)
+    pipeline.add(queue_1)
+    pipeline.add(queue_2)
     pipeline.add(container)
-    pipeline.add(filesink)
+    pipeline.add(filesink1)
 
-    if is_aarch64():
-        pipeline.add(queue_osd)
+    #if is_aarch64():
+        #pipeline.add(sink_pad1)
 
     # we link the elements together
     print("Linking elements in the Pipeline \n")
@@ -537,20 +583,53 @@ def main(args):
     tracker.link(nvvidconv)
     nvvidconv.link(nvosd)
     nvosd.link(tee)
-    tee.link(queue_osd)
-    
-    
-    # File Record Pipeline
-    tee.link(queue_file) 
-    queue_file.link(x264enc)
-    x264enc.link(container)
-    container.link(filesink)
 
+    # Define Tee sources
+    tee_src1 = tee.get_request_pad('src_%u')
+    print("Obtained request pad {} for stream branch".format(tee_src1.get_name()))
+    tee_src2 = tee.get_request_pad('src_%u')
+    print("Obtained request pad {} for stream branch".format(tee_src2.get_name()))
+    if not tee_src1 or not tee_src2:
+        sys.stderr.write(" Unable to create tee src 1 or 2 \n")
+
+    # Link and create sink pads for queue 1 and queue 2
+    sink_pad = queue_1.get_static_pad("sink")
+    tee_src1.link(sink_pad)
+    sink_pad = queue_2.get_static_pad("sink")
+    tee_src2.link(sink_pad)
+
+    
+
+    # File Record Pipeline
+    #tee_src2.link(queue_2)
+    queue_2.link(nvvidconv_post)
+    nvvidconv_post.link(capsfilter)
+    capsfilter.link(x264enc)
+    x264enc.link(vid_parser)
+
+    sinkpad1=container.get_request_pad("video_0")
+    if not sinkpad1:
+        sys.stderr.write("Unable to create sink pad of qtmux \n")
+    srcpad1=vid_parser.get_static_pad("src")
+    if not srcpad1:
+        sys.stderr.write("Unable to get src pad from video parser \n")
+    srcpad1.link(sinkpad1)
+    container.link(filesink1)
+
+
+    # FIXME Pipeline freezes after a few (~4) frames, Possible cause is that the tee and 2 queues are not set up properly or some sort of async osd and file output is needed,
+    # but still the video without osd should be saved so the camera feed might not be getting saved. Could need to add sinks with get_static_pad for sink pad on the sink side of the video stream.
+    # or link the source pad to the sink pad with the tee or with the queue1 and sink.
+    # OSD Render Pipeline
     if is_aarch64():
+
         #nvosd.link(queue)
-        queue_osd.link(sink)
+        #tee_src1.link(queue_1)
+        queue_1.link(sink)
+        #transform.link(sink)
     else:
         nvosd.link(sink)
+    
     
     
         

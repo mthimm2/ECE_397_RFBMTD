@@ -100,8 +100,8 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
     # TODO: check serial_port settings (bytesize)
     uart_transmission = UART_Jetson()
 
-    # SETUP: FDU lamp check 
-    # uart_transmission.send("11111111")
+    # battery status (hold the last known battery level)
+    prev_b_data = ""
 
     #[frame zero, frame one]
 
@@ -250,14 +250,15 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         battery_cap = readCapacity(bus)
         b_data = ""
         
-        if battery_cap > 75:
-            b_data = "3"
-        elif battery_cap > 50:
-            b_data = "2"
-        elif battery_cap > 25:
-            b_data = "1"
-        else:
-            b_data = "0"
+        if b_data != prev_b_data:
+            if battery_cap > 75:
+                b_data = "3"
+            elif battery_cap > 50:
+                b_data = "2"
+            elif battery_cap > 25:
+                b_data = "1"
+            else:
+                b_data = "0"
 
         # Is the status LED for the battery?
         # if so then update the information scheme as needed

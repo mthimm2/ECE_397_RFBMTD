@@ -101,7 +101,7 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
     uart_transmission = UART_Jetson()
 
     # SETUP: FDU lamp check 
-    uart_transmission.send("11111111")
+    # uart_transmission.send("11111111")
 
     #[frame zero, frame one]
 

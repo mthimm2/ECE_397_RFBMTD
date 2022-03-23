@@ -42,7 +42,9 @@ void setup() {
     pinMode(grnM,OUTPUT);
     pinMode(grnR,OUTPUT);
     pinMode(sts,OUTPUT);
-    pinMode(bat,OUTPUT);    
+    pinMode(bat,OUTPUT);  
+
+    lampCheck();   
 }
 
 void loop() {
@@ -148,7 +150,7 @@ void ledCntl()
   // 01 | 23 | 45 | 67
 
   /* LEFT LEDs */
-  if (receivedChars[0] == '1' and receivedChars[1] == "1")
+  if (receivedChars[0] == '1' and receivedChars[1] == '1')
   {
     Serial.print("[redL ON] ");
     // digitalWrite(redL, HIGH);
@@ -156,7 +158,7 @@ void ledCntl()
     // digitalWrite(grnL, LOW);
   }
 
-  else if (receivedChars[0] == '1' and receivedChars[1] == "0")
+  else if (receivedChars[0] == '1' and receivedChars[1] == '0')
   {
     Serial.print("[yelL ON] ");
     // digitalWrite(redL, LOW);
@@ -164,7 +166,7 @@ void ledCntl()
     // digitalWrite(grnL, LOW);
   }
 
-  else if (receivedChars[0] == '0' and receivedChars[1] == "1")
+  else if (receivedChars[0] == '0' and receivedChars[1] == '1')
   {
     Serial.print("[grnL ON] ");
     // digitalWrite(redL, LOW);
@@ -172,7 +174,7 @@ void ledCntl()
     // digitalWrite(grnL, HIGH);
   }
 
-  else if (receivedChars[0] == '0' and receivedChars[1] == "0") 
+  else if (receivedChars[0] == '0' and receivedChars[1] == '0') 
   {
     Serial.print("[Left OFF] ");
     // digitalWrite(redL, LOW);
@@ -183,7 +185,7 @@ void ledCntl()
   else {;}  // do nothing
 
   /* CENTER LEDs */
-  if (receivedChars[2] == '1' and receivedChars[3] == "1")
+  if (receivedChars[2] == '1' and receivedChars[3] == '1')
   {
     Serial.print("[redL ON] ");
     // digitalWrite(redL, HIGH);
@@ -191,7 +193,7 @@ void ledCntl()
     // digitalWrite(grnL, LOW);
   }
 
-  else if (receivedChars[2] == '1' and receivedChars[3] == "0")
+  else if (receivedChars[2] == '1' and receivedChars[3] == '0')
   {
     Serial.print("[yelM ON] ");
     // digitalWrite(redM, LOW);
@@ -199,7 +201,7 @@ void ledCntl()
     // digitalWrite(grnM, LOW);
   }
 
-  else if (receivedChars[2] == '0' and receivedChars[3] == "1")
+  else if (receivedChars[2] == '0' and receivedChars[3] == '1')
   {
     Serial.print("[grnM ON] ");
     // digitalWrite(redM, LOW);
@@ -207,7 +209,7 @@ void ledCntl()
     // digitalWrite(grnM, HIGH);
   }
 
-  else if (receivedChars[2] == '0' and receivedChars[3] == "0") 
+  else if (receivedChars[2] == '0' and receivedChars[3] == '0') 
   {
     Serial.print("[Center OFF] ");
     // digitalWrite(redM, LOW);
@@ -294,7 +296,9 @@ void ledCntl()
     blink_num_times(1, bat);
   }  
 
+}
 
+void lampCheck() {
   /* SETUP */
   if(receivedChars[0] == '1' && receivedChars[1] == '1' && receivedChars[2] == '1' && receivedChars[3] == '1' && receivedChars[4] == '1' && receivedChars[5] == '1' && receivedChars[6] == '1' && receivedChars[7] == '1') 
   {
@@ -303,10 +307,10 @@ void ledCntl()
       delay(3000); // delay for 3 sec
       allOff();
 
-  } else {
+  } 
+  
+  else {
       Serial.print("[Setup is OFF] ");
 
   }
-
-
 }

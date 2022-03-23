@@ -240,9 +240,9 @@ void ledCntl()
   if (receivedChars[2] == '1' and receivedChars[3] == '1')
   {
     Serial.print("[redL ON] ");
-    // digitalWrite(redL, HIGH);
-    // digitalWrite(yelL, LOW);
-    // digitalWrite(grnL, LOW);
+    // digitalWrite(redM, HIGH);
+    // digitalWrite(yelM, LOW);
+    // digitalWrite(grnM, LOW);
   }
 
   else if (receivedChars[2] == '1' and receivedChars[3] == '0')

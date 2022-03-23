@@ -267,7 +267,7 @@ void ledCntl()
   }  
 
   // SETUP
-  if(receivedChars[0] = '1' && receivedChars[1] = '1' && receivedChars[2] = '1' && receivedChars[3] = '1' && receivedChars[4] = '1' && receivedChars[5] = '1' && receivedChars[6] = '1' && receivedChars[7] = '1') 
+  if(receivedChars[0] == '1' && receivedChars[1] == '1' && receivedChars[2] == '1' && receivedChars[3] == '1' && receivedChars[4] == '1' && receivedChars[5] == '1' && receivedChars[6] == '1' && receivedChars[7] == '1') 
   {
       Serial.print("[Starting Setup] ");
       allOn();

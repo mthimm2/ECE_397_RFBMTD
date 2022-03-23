@@ -218,7 +218,7 @@ void ledCntl()
   else {;} // do nothing
 
   /* RIGHT LEDs */
-  if (receivedChars[4] == '1' and receivedChars[5] == "1")
+  if (receivedChars[4] == '1' and receivedChars[5] == '1')
   {
     Serial.print("[redR ON] ");
     // digitalWrite(redR, HIGH);
@@ -226,7 +226,7 @@ void ledCntl()
     // digitalWrite(grnR, LOW);
   }
 
-  else if (receivedChars[4] == '1' and receivedChars[5] == "0")
+  else if (receivedChars[4] == '1' and receivedChars[5] == '0')
   {
     Serial.print("[yelM ON] ");
     // digitalWrite(redR, LOW);
@@ -234,7 +234,7 @@ void ledCntl()
     // digitalWrite(grnR, LOW);
   }
 
-  else if (receivedChars[4] == '0' and receivedChars[5] == "1")
+  else if (receivedChars[4] == '0' and receivedChars[5] == '1')
   {
     Serial.print("[grnM ON] ");
     // digitalWrite(redR, LOW);
@@ -243,7 +243,7 @@ void ledCntl()
   }
 
   // 00
-  else if (receivedChars[4] == '0' and receivedChars[5] == "0") 
+  else if (receivedChars[4] == '0' and receivedChars[5] == '0') 
   {
     Serial.print("[Center OFF] ");
     // digitalWrite(redR, LOW);
@@ -296,7 +296,7 @@ void ledCntl()
 
 
   /* SETUP */
-  if(receivedChars[0] = '1' && receivedChars[1] = '1' && receivedChars[2] = '1' && receivedChars[3] = '1' && receivedChars[4] = '1' && receivedChars[5] = '1' && receivedChars[6] = '1' && receivedChars[7] = '1') 
+  if(receivedChars[0] == '1' && receivedChars[1] == '1' && receivedChars[2] == '1' && receivedChars[3] == '1' && receivedChars[4] == '1' && receivedChars[5] == '1' && receivedChars[6] == '1' && receivedChars[7] == '1') 
   {
       Serial.print("[Starting Setup] ");
       allOn();

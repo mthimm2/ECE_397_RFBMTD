@@ -50,8 +50,13 @@ PGIE_CLASS_ID_ROADSIGN = 3
 class_id_names = ["Car","Bicycle","Person","Roadsign","No bBox"]
 
 
-past_tracking_meta=[0]
-
+# osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
+# and update params for drawing rectangle, object information etc.
+# IMPORTANT NOTE:
+# a) probe() callbacks are synchronous and thus holds the buffer
+#    (info.get_buffer()) from traversing the pipeline until user return.
+# b) loops inside probe() callback could be costly in python.
+#    So users shall optimize according to their use-case.
 def osd_sink_pad_buffer_probe(pad,info,u_data):
    
     gst_buffer = info.get_buffer()
@@ -283,6 +288,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     
     return Gst.PadProbeReturn.OK	
 
+# TODO verify headless mode works
 def main(args):
     # Standard GStreamer initialization
     GObject.threads_init()
@@ -314,7 +320,9 @@ def main(args):
     # if not decoder:
     #     sys.stderr.write(" Unable to create Nvv4l2 Decoder \n")
 
-
+    # Pipeline for camera element
+    # nvarguscamerasrc -> nvvidconv -> caps_nvvidconv_src -> streammux -> pgie -> tracker -> nvvidconv -> nvosd -> tee -> -> 
+    #                                                                                                                    | -> 
     # Source element for csi camera 
     print("Creating Source \n ")
     source = Gst.ElementFactory.make("nvarguscamerasrc", "src-elem")
@@ -361,15 +369,22 @@ def main(args):
     tee = Gst.ElementFactory.make("tee","nvsink-tee")
     if not tee:
         sys.stderr.write(" Unable to create nvsink-tee\n")
+    tee.set_property("num-src-pads", 2)
     
     
+
+
+
+
+
+
     # Finally render the osd output using 'queue for jetson pref boost.
     # TODO Change to be able to handle headless mode.
     queue_1 = Gst.ElementFactory.make("queue", "nvtee-queue")
     if not queue_1:
         sys.stderr.write(" Unable to create queue_1\n")
     
-
+    # Pipeline for File sink
     # Define seperate queue so that each stream can flow independently. required by tee
     queue_2 = Gst.ElementFactory.make("queue","nvtee-queue2")
     if not queue_2:
@@ -463,7 +478,6 @@ def main(args):
     #     capsfilter = Gst.ElementFactory.make("capsfilter", "capsfilter")
     #     if not capsfilter:
     #         sys.stderr.write(" Unable to create capsfilter \n")
-
     #     caps = Gst.Caps.from_string("video/x-raw, format=I420")
     #     capsfilter.set_property("caps", caps)
 
@@ -584,11 +598,15 @@ def main(args):
     nvvidconv.link(nvosd)
     nvosd.link(tee)
 
-    # Define Tee sources
+    #                                              ... --->[      Tee      ] -> ...
+    # Define the source pads of the tee.  Remember it goes [sink ----> src1]
+    #                                                      [sink ----> src2]
     tee_src1 = tee.get_request_pad('src_%u')
     print("Obtained request pad {} for stream branch".format(tee_src1.get_name()))
+
     tee_src2 = tee.get_request_pad('src_%u')
     print("Obtained request pad {} for stream branch".format(tee_src2.get_name()))
+    
     if not tee_src1 or not tee_src2:
         sys.stderr.write(" Unable to create tee src 1 or 2 \n")
 

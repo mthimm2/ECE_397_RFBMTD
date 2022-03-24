@@ -436,7 +436,10 @@ def main(args):
     filesink_mp4 = Gst.ElementFactory.make("filesink","filesink_video")
     if not filesink_mp4:
         sys.stderr.write(" Unable to create filesink\n")
-    filesink_mp4.set_property("location","/home/team3/Videos/Video_Out/outputvideotest.mp4")
+
+    current_time = time.localtime()
+    current_time = time.strftime("%b-%d-%Y_%H:%M:%S", current_time)
+    filesink_mp4.set_property("location","/home/team3/Videos/Video_Out/"+ current_time +".mp4")
     filesink_mp4.set_property("sync",1) # Was 1 ,Works with 0
     filesink_mp4.set_property("async",0)# was 0, works with 1
 

@@ -313,7 +313,7 @@ def main(args):
     if not pipeline:
         sys.stderr.write(" Unable to create Pipeline \n")
     
-    # Enable Message forwarding so we can recieve filesinks EOS signal to avoid premtivly closing the pipeline and corrupting the mp4 file
+    # Enable Message forwarding so we can recieve filesinks EOS signal to avoid closing the pipeline before buffers flush and corrupting the mp4 file
     pipeline.set_property('message-forward', True)
 
 
@@ -321,11 +321,11 @@ def main(args):
     # If input parameter is passed via an argument then use that as the input source and not the CSI camera.
     if input_file != None:
            # Source element for reading from the file
-        print("Creating Source \n ")
+        print("Playing file %s " % input_file)
         source = Gst.ElementFactory.make("filesrc", "file-source")
         if not source:
-            sys.stderr.write(" Unable to create Source \n")
-        
+            sys.stderr.write(" Unable to create file source \n")
+        source.set_property('location', input_file)
         # Since the data format in the input file is elementary h264 stream,
         # we need a h264parser
         print("Creating H264Parser \n")
@@ -396,8 +396,8 @@ def main(args):
         sys.stderr.write(" Unable to create nvsink-tee\n")
     
 
-    # Finally render the osd output using 'queue for jetson pref boost.
-    # TODO Change to be able to handle headless mode.
+    # Finally render the osd output using 'queue for jetson pref boost. TODO: also check if queue or nvelgtransform is better
+    
     queue_1 = Gst.ElementFactory.make("queue", "nvtee-queue")
     if not queue_1:
         sys.stderr.write(" Unable to create queue_1\n")
@@ -519,6 +519,11 @@ def main(args):
     # Define the pipeline  TODO: Add statements for file input and no display.
     print("Adding elements to Pipeline \n")
     pipeline.add(source)
+
+    if input_file != None:
+        pipeline.add(h264parser)
+        pipeline.add(decoder)
+
     pipeline.add(nvvidconv_src)
     pipeline.add(caps_nvvidconv_src)
     pipeline.add(streammux)
@@ -527,7 +532,8 @@ def main(args):
     pipeline.add(nvvidconv)
     pipeline.add(nvosd)
     pipeline.add(sink)
-    pipeline.add(transform)
+    if not no_display: # If there is a display add transform element to pipeline
+        pipeline.add(transform)
     pipeline.add(tee)
     pipeline.add(nvvidconv_postosd)
     pipeline.add(encoder)

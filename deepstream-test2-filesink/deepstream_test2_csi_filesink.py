@@ -297,6 +297,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     return Gst.PadProbeReturn.OK	
 
 
+#TODO: Fix input file bug dropping frame. 
+# Also change wait for end of stream to have a time out so the program wont hang indef. 
+# Add transfor to be queue for arch 64. 
 
 
 # TODO verify headless mode works
@@ -345,6 +348,7 @@ def main(args):
         source = Gst.ElementFactory.make("nvarguscamerasrc", "src-elem")
         if not source:
             sys.stderr.write(" Unable to create Source \n")
+        source.set_property('bufapi-version', True)
 
     # Converter to scale the image
     nvvidconv_src = Gst.ElementFactory.make("nvvideoconvert", "convertor_src")
@@ -419,7 +423,8 @@ def main(args):
     if is_aarch64():
         encoder.set_property('preset-level', 1)
         encoder.set_property('insert-sps-pps', 1)
-        encoder.set_property('bufapi-version', 1)
+        if input_file == None:
+            encoder.set_property('bufapi-version', 1)
 
     # Is this really needed? 
     # changes from h264parse to mpeg4videoparse for debugging.  # FIXME h264 parser not working and will hold up the osd. Look into possible hangups in pipeline.
@@ -469,7 +474,7 @@ def main(args):
             sys.stderr.write(" Unable to create egl sink \n")
 
 
-    source.set_property('bufapi-version', True)
+    
     caps_nvvidconv_src.set_property('caps', Gst.Caps.from_string('video/x-raw(memory:NVMM), width=1280, height=720'))
     
     # Define Streammux
@@ -546,7 +551,12 @@ def main(args):
     
     # we link the elements together
     print("Linking elements in the Pipeline \n")
-    source.link(nvvidconv_src)
+    if input_file != None:
+        source.link(h264parser)
+        h264parser.link(decoder)
+        decoder.link(nvvidconv_src)
+    else:
+        source.link(nvvidconv_src)
     nvvidconv_src.link(caps_nvvidconv_src)
 
     sinkpad_streammux = streammux.get_request_pad("sink_0")

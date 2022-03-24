@@ -292,6 +292,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     
     return Gst.PadProbeReturn.OK	
 
+
+
+
 # TODO verify headless mode works
 def main(args):
     # Standard GStreamer initialization
@@ -305,6 +308,10 @@ def main(args):
 
     if not pipeline:
         sys.stderr.write(" Unable to create Pipeline \n")
+    
+    # Enable Message forwarding so we can recieve filesinks EOS signal to avoid premtivly closing the pipeline and corrupting the mp4 file
+    pipeline.set_property('message-forward', True)
+
 
     # TODO Implement File Input Inference
     #    # Source element for reading from the file
@@ -415,11 +422,12 @@ def main(args):
     video_parser = Gst.ElementFactory.make("h264parse", "h264 parser")
     if not video_parser:
         sys.stderr.write(" Unable to create parser\n")
+    video_parser.set_property('config-interval', -1) # TODO See if this helps the issue of unreadable mp4 file if not remove.
 
-    # The pad and sink are request type so I probably need to request sink and src pads
-    container = Gst.ElementFactory.make("qtmux","muxer")
+    
+    container = Gst.ElementFactory.make("mp4mux","muxer")
     if not container:
-        sys.stderr.write(" Unable to create qtmux\n")
+        sys.stderr.write(" Unable to create mp4mux\n")
 
     filesink_mp4 = Gst.ElementFactory.make("filesink","filesink_video")
     if not filesink_mp4:
@@ -428,17 +436,6 @@ def main(args):
     filesink_mp4.set_property("sync",1) # Was 1 ,Works with 0
     filesink_mp4.set_property("async",0)# was 0, works with 1
 
-    # # Comment out bec its in the no display else statement.
-    # # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
-    # print("Creating EGLSink \n")
-    # sink = Gst.ElementFactory.make("nvoverlaysink", "nvvideo-renderer")
-    # sink.set_property('sync', 0)
-    # sink.set_property("overlay-x",0) # 0
-    # sink.set_property("overlay-y",360) #360
-    # sink.set_property("overlay-w",960) #720
-    # sink.set_property("overlay-h",480) #360
-    # if not sink:
-    #     sys.stderr.write(" Unable to create egl sink \n")
 
     if (no_display):
         print("Creating Fake Sink")
@@ -448,6 +445,7 @@ def main(args):
     else:
         # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
         print("Creating OverlaySink \n")
+        # Currently this is not used and not connected, TODO Remove if not needed.
         transform = Gst.ElementFactory.make("nvegltransform",  "nvegl-transform") 
         if not transform:
             sys.stderr.write(" Unable to create nvelgtransform \n")
@@ -461,53 +459,6 @@ def main(args):
         if not sink:
             sys.stderr.write(" Unable to create egl sink \n")
 
-    
-    # # Define file sink Gst streams:
-    # if RECORD_ON:
-    #     tee = Gst.ElementFactory.make("tee","nvsink-tee")
-    #     if not tee:
-    #         sys.stderr.write(" Unable to create nvsink-tee\n")
-        
-    #     queue2 = Gst.ElementFactory.make("queue","nvtee-queue2")
-    #     if not queue2:
-    #         sys.stderr.write(" Unable to create nvtee-queue2\n")
-
-
-    #     # unknown if needed 
-    #     nvvidconv2 = Gst.ElementFactory.make("nvvideoconvert", "convertor2")
-    #     if not nvvidconv2:
-    #         sys.stderr.write(" Unable to create nvvidconv2 \n")
-    #     # Dont know what caps or caps filter is
-    #     capsfilter = Gst.ElementFactory.make("capsfilter", "capsfilter")
-    #     if not capsfilter:
-    #         sys.stderr.write(" Unable to create capsfilter \n")
-    #     caps = Gst.Caps.from_string("video/x-raw, format=I420")
-    #     capsfilter.set_property("caps", caps)
-
-    #     encoder = Gst.ElementFactory.make("nvv4l2h264enc", "encoder")
-    #     if not encoder:
-    #         sys.stderr.write(" Unable to create encoder \n")
-    #     encoder.set_property("bitrate", 2000000)
-
-    #     print("Creating Code Parser \n")
-    #     codeparser = Gst.ElementFactory.make("mpeg4videoparse", "mpeg4-parser")
-    #     if not codeparser:
-    #         sys.stderr.write(" Unable to create code parser \n")
-
-    #     print("Creating Container \n")
-    #     container = Gst.ElementFactory.make("qtmux", "qtmux")
-    #     if not container:
-    #         sys.stderr.write(" Unable to create code parser \n")
-
-    #     print("Creating Sink \n")
-    #     sink2 = Gst.ElementFactory.make("filesink", "filesink")
-    #     if not sink:
-    #         sys.stderr.write(" Unable to create file sink \n")
-
-    #     sink2.set_property("location", "./out.mp4")
-    #     sink2.set_property("sync", 1)
-    #     sink2.set_property("async", 0)
-    # Finished Gst file sink streams
 
     source.set_property('bufapi-version', True)
     caps_nvvidconv_src.set_property('caps', Gst.Caps.from_string('video/x-raw(memory:NVMM), width=1280, height=720'))
@@ -630,18 +581,10 @@ def main(args):
     
     # If this doesnt work then maybe parser goes before encoder
     caps_nvvidconv_postosd.link(encoder)
-    encoder.link(video_parser) 
+    encoder.link(video_parser)
 
 
-    #tee_src2.link(queue_2)
-    # IDK if i need the commented code below ,might need to rewrite.3
-    # TODO rewrite linking
-    # queue_2.link(nvvidconv_post)
-    # nvvidconv_post.link(capsfilter)
-    # capsfilter.link(x264enc)
-    # x264enc.link(vid_parser)
-
-    # Request sink pad for container qtmux
+    # Request video sink pad for container 
     container_sink=container.get_request_pad("video_0")
     if not container_sink:
         sys.stderr.write("Unable to create sink pad of container \n")
@@ -678,6 +621,8 @@ def main(args):
     bus = pipeline.get_bus()
     bus.add_signal_watch()
     bus.connect ("message", bus_call, loop)
+    
+    
 
     # Lets add probe to get informed of the meta data generated, we add probe to
     # the sink pad of the osd element, since by that time, the buffer would have
@@ -695,10 +640,21 @@ def main(args):
     try:
       loop.run()
     except:
-      pass
+        print("Sending an EOS event to the pipeline")
+        pass
 
-    # cleanup
+    # Wait for EOS before closing the pipeline Gst.CLOCK_TIME_NONE -> poll indefinitly untill message (EOS) is recieved
+    # this function will block forever until a matching message was posted on the bus.
+    pipeline.send_event(Gst.Event.new_eos())
+    print("Waiting for the EOS message on the bus")
+    bus.timed_pop_filtered(Gst.CLOCK_TIME_NONE, Gst.MessageType.EOS)
+    print("Stopping pipeline")
+    
+
+    # cleanup 
     pipeline.set_state(Gst.State.NULL)
+
+
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))

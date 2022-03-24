@@ -453,7 +453,7 @@ def main(args):
         # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
         print("Creating OverlaySink \n")
 
-        # Currently this is not used and not connected, TODO Remove if not needed.
+        # TODO check if this is faster for rendering the window display
         transform = Gst.ElementFactory.make("nvegltransform",  "nvegl-transform") 
         if not transform:
             sys.stderr.write(" Unable to create nvelgtransform \n")
@@ -516,7 +516,7 @@ def main(args):
             tracker_display_tracking_id = config.getint('tracker', key)
             tracker.set_property('display-tracking-id',tracker_display_tracking_id)
 
-    # Define the pipeline 
+    # Define the pipeline  TODO: Add statements for file input and no display.
     print("Adding elements to Pipeline \n")
     pipeline.add(source)
     pipeline.add(nvvidconv_src)

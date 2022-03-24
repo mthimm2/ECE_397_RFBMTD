@@ -657,7 +657,7 @@ def main(args):
     # this function will block forever until a matching message was posted on the bus.
     pipeline.send_event(Gst.Event.new_eos())
     print("Waiting for the EOS message on the bus")
-    bus.timed_pop_filtered(Gst.CLOCK_TIME_NONE, Gst.MessageType.EOS)
+    bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)
     print("Stopping pipeline")
     
 

@@ -370,20 +370,20 @@ def main(args):
     if not nvosd:
         sys.stderr.write(" Unable to create nvosd \n")
     
-    # Use Converter to convert from NV12 to RGBA as required by nvosd
+    # Use Converter 
     nvvidconv_postosd = Gst.ElementFactory.make("nvvideoconvert", "convertor_postosd")
     if not nvvidconv_postosd:
         sys.stderr.write(" Unable to create nvvidconv_postosd \n")
 
     # Create a caps filter for NVMM and resolution scaling
-    caps = Gst.ElementFactory.make("capsfilter", "filter")
-    caps.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM), format=I420"))
-    
+    caps_nvvidconv_postosd = Gst.ElementFactory.make("capsfilter", "filter")
+    caps_nvvidconv_postosd.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM), format=I420"))
+
     # Define a Tee to branch the Queue for Recording and one for OSD
     tee = Gst.ElementFactory.make("tee","nvsink-tee")
     if not tee:
         sys.stderr.write(" Unable to create nvsink-tee\n")
-     
+    
 
     # Finally render the osd output using 'queue for jetson pref boost.
     # TODO Change to be able to handle headless mode.
@@ -396,7 +396,7 @@ def main(args):
     queue_2 = Gst.ElementFactory.make("queue","nvtee-queue2")
     if not queue_2:
         sys.stderr.write(" Unable to create queue_2\n")
-   
+    #queue2.set_property("flush-on-eos",True) # maybe needed to flush the buffer possibly losing some data to ensure that mp4 is saved if encoding is slow
 
     
 
@@ -412,8 +412,8 @@ def main(args):
 
     # Is this really needed? 
     # changes from h264parse to mpeg4videoparse for debugging.  # FIXME h264 parser not working and will hold up the osd. Look into possible hangups in pipeline.
-    vid_parser = Gst.ElementFactory.make("h264parse", "h264 parser")
-    if not vid_parser:
+    video_parser = Gst.ElementFactory.make("h264parse", "h264 parser")
+    if not video_parser:
         sys.stderr.write(" Unable to create parser\n")
 
     # The pad and sink are request type so I probably need to request sink and src pads
@@ -421,23 +421,24 @@ def main(args):
     if not container:
         sys.stderr.write(" Unable to create qtmux\n")
 
-    filesink1=Gst.ElementFactory.make("filesink","filesink")
-    if not filesink1:
+    filesink_mp4 = Gst.ElementFactory.make("filesink","filesink_video")
+    if not filesink_mp4:
         sys.stderr.write(" Unable to create filesink\n")
-    filesink1.set_property("location","/home/team3/Videos/Video_Out/outputvideotest.mp4")
-    filesink1.set_property("sync",1) # Was 1 ,Works with 0
-    filesink1.set_property("async",0)#was 0, works with 1
+    filesink_mp4.set_property("location","/home/team3/Videos/Video_Out/outputvideotest.mp4")
+    filesink_mp4.set_property("sync",1) # Was 1 ,Works with 0
+    filesink_mp4.set_property("async",0)# was 0, works with 1
 
-    # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
-    print("Creating EGLSink \n")
-    sink = Gst.ElementFactory.make("nvoverlaysink", "nvvideo-renderer")
-    sink.set_property('sync', 0)
-    sink.set_property("overlay-x",0) # 0
-    sink.set_property("overlay-y",360) #360
-    sink.set_property("overlay-w",960) #720
-    sink.set_property("overlay-h",480) #360
-    if not sink:
-        sys.stderr.write(" Unable to create egl sink \n")
+    # # Comment out bec its in the no display else statement.
+    # # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
+    # print("Creating EGLSink \n")
+    # sink = Gst.ElementFactory.make("nvoverlaysink", "nvvideo-renderer")
+    # sink.set_property('sync', 0)
+    # sink.set_property("overlay-x",0) # 0
+    # sink.set_property("overlay-y",360) #360
+    # sink.set_property("overlay-w",960) #720
+    # sink.set_property("overlay-h",480) #360
+    # if not sink:
+    #     sys.stderr.write(" Unable to create egl sink \n")
 
     if (no_display):
         print("Creating Fake Sink")
@@ -447,7 +448,7 @@ def main(args):
     else:
         # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
         print("Creating OverlaySink \n")
-        transform = Gst.ElementFactory.make("nvegltransform",  "nvegl-transform")
+        transform = Gst.ElementFactory.make("nvegltransform",  "nvegl-transform") 
         if not transform:
             sys.stderr.write(" Unable to create nvelgtransform \n")
             
@@ -518,9 +519,6 @@ def main(args):
     streammux.set_property('batched-push-timeout', 4000000)
     streammux.set_property('live-source',1) # Added for CSI
 
-
-    
-
     #Set properties of pgie
     pgie.set_property('config-file-path', "dstest2_pgie_config2.txt")
    
@@ -570,39 +568,36 @@ def main(args):
     pipeline.add(tee)
     pipeline.add(nvvidconv_postosd)
     pipeline.add(encoder)
-    pipeline.add(vid_parser)
-    #pipeline.add(capsfilter)
+    pipeline.add(video_parser)
+    pipeline.add(caps_nvvidconv_postosd)
     pipeline.add(queue_1)
     pipeline.add(queue_2)
     pipeline.add(container)
-    pipeline.add(filesink1)
-
-    #if is_aarch64():
-        #pipeline.add(sink_pad1)
-
+    pipeline.add(filesink_mp4)
+    
     # we link the elements together
     print("Linking elements in the Pipeline \n")
     source.link(nvvidconv_src)
     nvvidconv_src.link(caps_nvvidconv_src)
 
-    sinkpad = streammux.get_request_pad("sink_0")
-    if not sinkpad:
+    sinkpad_streammux = streammux.get_request_pad("sink_0")
+    if not sinkpad_streammux:
         sys.stderr.write(" Unable to get the sink pad of streammux \n")
 
-    srcpad = caps_nvvidconv_src.get_static_pad("src")
-    if not srcpad:
+    srcpad_caps_nvvidconv_src = caps_nvvidconv_src.get_static_pad("src")
+    if not srcpad_caps_nvvidconv_src:
         sys.stderr.write(" Unable to get source pad of source \n")
 
-    srcpad.link(sinkpad)
+    srcpad_caps_nvvidconv_src.link(sinkpad_streammux) # Linking the nv vidconverter src pad to the streammux sink pad.
     streammux.link(pgie)
     pgie.link(tracker)
     tracker.link(nvvidconv)
     nvvidconv.link(nvosd)
-    nvosd.link(tee)
+    nvosd.link(tee) 
 
     # Notes (From Dev Forms):
     # If you want to send video to multiple sinks (a display, and the network), You will have to add and link a tee element just before the encoder to split the pipeline 
-    # into two branches, add two queues 4 and link the queues to the tee by requesting pads 3 from the tee and linking them to the sink pads of the two queues you created. 
+    # into two branches, add two queues and link the queues to the tee by requesting pads from the tee and linking them to the sink pads of the two queues you created. 
     # You can’t just go tee.link(queue) because the pads don’t exist on tees until you request them 2. Then you can link() one queue to the encoder ,then the rest of the 
     # rtsp elements as exists currently… and the other queue directly to a sink like nvoverlaysink. 
     # I am not sure if any of Nvidia’s python examples use a tee like this, but you can search the sources 
@@ -619,15 +614,25 @@ def main(args):
 
     # Link tee source pad to queue sink pad and create sink pads for queue 1 and queue 2
     # --> [sink   tee   src] --> [sink  queue  src] -->
+    # Link tee src1 to queue 1 
     sink_pad_queue_1 = queue_1.get_static_pad("sink")
     tee_src1.link(sink_pad_queue_1)
+    # Link tee src2 to queue 2
     sink_pad_queue_2 = queue_2.get_static_pad("sink")
     tee_src2.link(sink_pad_queue_2)
     if not sink_pad_queue_1 or not sink_pad_queue_2:
         sys.stderr.write(" Unable to create sink pads of queue 1 or queue 2 \n")
     
 
-    # File Record Pipeline linking
+    # File Record Pipeline linking (Queue_2)
+    queue_2.link(nvvidconv_postosd)
+    nvvidconv_postosd.link(caps_nvvidconv_postosd)
+    
+    # If this doesnt work then maybe parser goes before encoder
+    caps_nvvidconv_postosd.link(encoder)
+    encoder.link(video_parser) 
+
+
     #tee_src2.link(queue_2)
     # IDK if i need the commented code below ,might need to rewrite.3
     # TODO rewrite linking
@@ -640,11 +645,13 @@ def main(args):
     container_sink=container.get_request_pad("video_0")
     if not container_sink:
         sys.stderr.write("Unable to create sink pad of container \n")
-    parser_src = vid_parser.get_static_pad("src")
-    if not parser_src:
+    
+    video_parser_src = video_parser.get_static_pad("src")
+    if not video_parser_src:
         sys.stderr.write("Unable to get src pad from video parser \n")
-    parser_src.link(container_sink)
-    container.link(filesink1)
+    
+    video_parser_src.link(container_sink)
+    container.link(filesink_mp4)
 
 
     # FIXME Pipeline freezes after a few (~4) frames, Possible cause is that the tee and 2 queues are not set up properly or some sort of async osd and file output is needed,
@@ -655,7 +662,9 @@ def main(args):
 
         #nvosd.link(queue)
         #tee_src1.link(queue_1)
+
         queue_1.link(sink)
+
         #transform.link(sink)
     else:
         nvosd.link(sink)

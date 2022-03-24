@@ -188,7 +188,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             
             else:
                 pass
-            # Eric: What is min y coord?
+            
         # Right segment min y coord
         for info_t in right_det:
     
@@ -369,8 +369,16 @@ def main(args):
     nvosd = Gst.ElementFactory.make("nvdsosd", "onscreendisplay")
     if not nvosd:
         sys.stderr.write(" Unable to create nvosd \n")
+    
+    # Use Converter to convert from NV12 to RGBA as required by nvosd
+    nvvidconv_postosd = Gst.ElementFactory.make("nvvideoconvert", "convertor_postosd")
+    if not nvvidconv_postosd:
+        sys.stderr.write(" Unable to create nvvidconv_postosd \n")
 
-
+    # Create a caps filter for NVMM and resolution scaling
+    caps = Gst.ElementFactory.make("capsfilter", "filter")
+    caps.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM), format=I420"))
+    
     # Define a Tee to branch the Queue for Recording and one for OSD
     tee = Gst.ElementFactory.make("tee","nvsink-tee")
     if not tee:
@@ -390,14 +398,7 @@ def main(args):
         sys.stderr.write(" Unable to create queue_2\n")
    
 
-    # Use Converter to convert from NV12 to RGBA as required by nvosd
-    nvvidconv_postosd = Gst.ElementFactory.make("nvvideoconvert", "convertor_postosd")
-    if not nvvidconv_postosd:
-        sys.stderr.write(" Unable to create nvvidconv_postosd \n")
-
-    # Create a caps filter for NVMM and resolution scaling
-    caps = Gst.ElementFactory.make("capsfilter", "filter")
-    caps.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM), format=I420"))
+    
 
     # Make the h264 encoder
     encoder = Gst.ElementFactory.make("nvv4l2h264enc", "h264-encoder")

@@ -21,6 +21,8 @@
 
 import sys
 import os
+from optparse import OptionParser
+import time
 #sys.path.append('../')
 # Changed to absolute path
 sys.path.append('/opt/nvidia/deepstream/deepstream-6.0/sources/deepstream_python_apps/apps')
@@ -39,10 +41,12 @@ import pyds
 os.environ["GST_DEBUG_DUMP_DOT_DIR"] = "/tmp"
 os.putenv('GST_DEBUG_DUMP_DIR_DIR', '/tmp')
 
-# Debug Flags
-no_display = False
+# Program Parameters
 RECORD_ON = True
-
+input_file = None
+no_display = False
+PGIE_CONFIG_FILE = "dstest2_pgie_config2.txt"
+TRACKER_CONFIG_FILE = 'dstest2_tracker_config2.txt'
 
 # Class definition
 PGIE_CLASS_ID_VEHICLE = 0
@@ -314,33 +318,33 @@ def main(args):
 
 
     # TODO Implement File Input Inference
-    #    # Source element for reading from the file
-    #     print("Creating Source \n ")
-    #     source = Gst.ElementFactory.make("filesrc", "file-source")
-    #     if not source:
-    #         sys.stderr.write(" Unable to create Source \n")
+    # If input parameter is passed via an argument then use that as the input source and not the CSI camera.
+    if input_file != None:
+           # Source element for reading from the file
+        print("Creating Source \n ")
+        source = Gst.ElementFactory.make("filesrc", "file-source")
+        if not source:
+            sys.stderr.write(" Unable to create Source \n")
         
-    #     # Since the data format in the input file is elementary h264 stream,
-    #     # we need a h264parser
-    #     print("Creating H264Parser \n")
-    #     h264parser = Gst.ElementFactory.make("h264parse", "h264-parser")
-    #     if not h264parser:
-    #         sys.stderr.write(" Unable to create h264 parser \n")
+        # Since the data format in the input file is elementary h264 stream,
+        # we need a h264parser
+        print("Creating H264Parser \n")
+        h264parser = Gst.ElementFactory.make("h264parse", "h264-parser")
+        if not h264parser:
+            sys.stderr.write(" Unable to create h264 parser \n")
         
-    #     # Use nvdec_h264 for hardware accelerated decode on GPU
-    #     print("Creating Decoder \n")
-    #     decoder = Gst.ElementFactory.make("nvv4l2decoder", "nvv4l2-decoder")
-    #     if not decoder:
-    #         sys.stderr.write(" Unable to create Nvv4l2 Decoder \n")
-
-    # Pipeline for camera element
-    # nvarguscamerasrc -> nvvidconv -> caps_nvvidconv_src -> streammux -> pgie -> tracker -> nvvidconv -> nvosd -> tee -> -> 
-    #                                                                                                                    | -> 
-    # Source element for csi camera 
-    print("Creating Source \n ")
-    source = Gst.ElementFactory.make("nvarguscamerasrc", "src-elem")
-    if not source:
-        sys.stderr.write(" Unable to create Source \n")
+        # Use nvdec_h264 for hardware accelerated decode on GPU
+        print("Creating Decoder \n")
+        decoder = Gst.ElementFactory.make("nvv4l2decoder", "nvv4l2-decoder")
+        if not decoder:
+            sys.stderr.write(" Unable to create Nvv4l2 Decoder \n")
+    
+    else:
+        # Source element for csi camera 
+        print("Creating Source \n ")
+        source = Gst.ElementFactory.make("nvarguscamerasrc", "src-elem")
+        if not source:
+            sys.stderr.write(" Unable to create Source \n")
 
     # Converter to scale the image
     nvvidconv_src = Gst.ElementFactory.make("nvvideoconvert", "convertor_src")
@@ -445,17 +449,19 @@ def main(args):
     else:
         # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
         print("Creating OverlaySink \n")
+
         # Currently this is not used and not connected, TODO Remove if not needed.
         transform = Gst.ElementFactory.make("nvegltransform",  "nvegl-transform") 
         if not transform:
             sys.stderr.write(" Unable to create nvelgtransform \n")
             
-        sink = Gst.ElementFactory.make("nvoverlaysink", "nvvideo-renderer")
+        #sink = Gst.ElementFactory.make("nvoverlaysink", "nvvideo-renderer")
+        sink = Gst.ElementFactory.make("nveglglessink", "nvvideo-renderer")
         sink.set_property('sync', 0)
-        sink.set_property("overlay-x",0) # 0
-        sink.set_property("overlay-y",360) #360
-        sink.set_property("overlay-w",960) #720
-        sink.set_property("overlay-h",480) #360
+        # sink.set_property("overlay-x",0) # 0
+        # sink.set_property("overlay-y",360) #360
+        # sink.set_property("overlay-w",960) #720
+        # sink.set_property("overlay-h",480) #360
         if not sink:
             sys.stderr.write(" Unable to create egl sink \n")
 
@@ -468,14 +474,17 @@ def main(args):
     streammux.set_property('height', 720)
     streammux.set_property('batch-size', 1)
     streammux.set_property('batched-push-timeout', 4000000)
-    streammux.set_property('live-source',1) # Added for CSI
+    
+    if input_file == None:
+        streammux.set_property('live-source',1) # Added for CSI
+        sys.stderr.write(" Setting Streammux for live-source \n")
 
     #Set properties of pgie
-    pgie.set_property('config-file-path', "dstest2_pgie_config2.txt")
+    pgie.set_property('config-file-path', PGIE_CONFIG_FILE)
    
     #Set properties of tracker
     config = configparser.ConfigParser()
-    config.read('dstest2_tracker_config2.txt')
+    config.read(TRACKER_CONFIG_FILE)
     config.sections()
 
     for key in config['tracker']:
@@ -546,16 +555,8 @@ def main(args):
     nvvidconv.link(nvosd)
     nvosd.link(tee) 
 
-    # Notes (From Dev Forms):
-    # If you want to send video to multiple sinks (a display, and the network), You will have to add and link a tee element just before the encoder to split the pipeline 
-    # into two branches, add two queues and link the queues to the tee by requesting pads from the tee and linking them to the sink pads of the two queues you created. 
-    # You can’t just go tee.link(queue) because the pads don’t exist on tees until you request them 2. Then you can link() one queue to the encoder ,then the rest of the 
-    # rtsp elements as exists currently… and the other queue directly to a sink like nvoverlaysink. 
-    # I am not sure if any of Nvidia’s python examples use a tee like this, but you can search the sources 
-    # for “tee” and see if there is an existing example.
-    #                                              ... --->[      Tee      ] -> ...
-    # Define the source pads of the tee.  Remember it goes [sink ----> src1]
-    #                                                      [sink ----> src2]
+    
+    # Define the source pads of the tee.
     tee_src1 = tee.get_request_pad('src_%u')
     print("Obtained request pad {} for stream branch".format(tee_src1.get_name()))
     tee_src2 = tee.get_request_pad('src_%u')
@@ -578,11 +579,8 @@ def main(args):
     # File Record Pipeline linking (Queue_2)
     queue_2.link(nvvidconv_postosd)
     nvvidconv_postosd.link(caps_nvvidconv_postosd)
-    
-    # If this doesnt work then maybe parser goes before encoder
     caps_nvvidconv_postosd.link(encoder)
     encoder.link(video_parser)
-
 
     # Request video sink pad for container 
     container_sink=container.get_request_pad("video_0")
@@ -596,19 +594,12 @@ def main(args):
     video_parser_src.link(container_sink)
     container.link(filesink_mp4)
 
-
-    # FIXME Pipeline freezes after a few (~4) frames, Possible cause is that the tee and 2 queues are not set up properly or some sort of async osd and file output is needed,
-    # but still the video without osd should be saved so the camera feed might not be getting saved. Could need to add sinks with get_static_pad for sink pad on the sink side of the video stream.
-    # or link the source pad to the sink pad with the tee or with the queue1 and sink.
     # OSD Render Pipeline
     if is_aarch64():
 
-        #nvosd.link(queue)
-        #tee_src1.link(queue_1)
-
-        queue_1.link(sink)
-
-        #transform.link(sink)
+        #queue_1.link(sink)
+        queue_1.link(transform)
+        transform.link(sink)
     else:
         nvosd.link(sink)
     
@@ -654,8 +645,34 @@ def main(args):
     # cleanup 
     pipeline.set_state(Gst.State.NULL)
 
+# Parse and validate input arguments
+def parse_args():
+    parser = OptionParser()
+    parser.add_option("-i", "--input-file", dest="input_file",default=None,
+                      help="Set the input H264 file, Default=None -> CSI Camera", metavar="FILE")
+    parser.add_option("", "--no-display", action="store_true",
+                      dest="no_display", default=False,
+                      help="Disable display")
+
+    (options, args) = parser.parse_args()
+
+
+    global input_file
+    global no_display
+    input_file = options.input_file
+    no_display = options.no_display
+
+   
+    return 0
+
+    
 
 
 if __name__ == '__main__':
+    ret = parse_args()
+    # If argument parsing fails, returns failure (non-zero)
+    if ret == 1:
+        sys.exit(1)
+    
     sys.exit(main(sys.argv))
 

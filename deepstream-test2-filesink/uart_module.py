@@ -1,15 +1,7 @@
 #!/usr/bin/python3
-
 import serial
 
 class UART_Jetson():
-    '''
-    Pinout:
-    Jetson Pins Used:
-    Pin 6 - GND
-    Pin 8 - D14 - TXD (Plugs into Arduino RX)
-    Pin 10 - D15 - RXD (Plugs into Arduino TX)
-    '''
 
     def __init__(self):
         # https://pyserial.readthedocs.io/en/latest/pyserial_api.html?highlight=byte_size#serial.Serial.inter_byte_timeout
@@ -28,8 +20,6 @@ class UART_Jetson():
     def send(self, data):
         # Send data 
         serial_port.write(f"<{data}>".encode())
-
-
 
 
 # Final FDU Implementation

@@ -256,7 +256,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
         # Battery functions 
         bat_bus = smbus.SMBus(1)    # TODO: check whether or not to leave this here or before loop
-        battery_cap = readCapacity(bus)
+        battery_cap = readCapacity(bat_bus)
         b_data = ""
         
         if b_data != prev_b_data:

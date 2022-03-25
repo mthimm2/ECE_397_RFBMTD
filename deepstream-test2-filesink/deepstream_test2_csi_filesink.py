@@ -288,6 +288,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
             uart_transmission.send("1" + c_data + r_data + o_data)
 
+        l_data=1
+        c_data=2
+        r_data=3
         # Cyclist's right side [object is passing close right (cyclist rear POV)]
         elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
             uart_transmission.send(l_data + c_data + "1" + o_data)

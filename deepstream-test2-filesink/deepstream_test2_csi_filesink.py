@@ -284,16 +284,16 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # if so then update the information scheme as needed
         o_data   = f"0{b_data}"   # status (0-1), battery (0-3)
 
+        l_data=1
+        c_data=2
+        r_data=3
+        print(obj_meta.object_id)
+
         # Overwrite left or right detection data sent from Jetson to Arduino Micro
         # Cyclist's left side [object is passing close left (cyclist rear POV)]
         if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
             uart_transmission.send("1" + c_data + r_data + o_data)
 
-        l_data=1
-        c_data=2
-        r_data=3
-
-        print(obj_meta.object_id)
         # Cyclist's right side [object is passing close right (cyclist rear POV)]
         elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
             uart_transmission.send(l_data + c_data + "1" + o_data)
@@ -301,9 +301,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         else:
             # object is not passing
             uart_transmission.send(l_data + c_data + r_data + o_data)
-
-        
-        
 
         # Debug Print of Left Center and Right Coeff
         #print(l_coeff,c_coeff, r_coeff)

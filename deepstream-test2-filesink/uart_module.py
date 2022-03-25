@@ -24,7 +24,7 @@ class UART_Jetson():
         serial_port.write(f"<{data}>".encode())
 
     def serial_cleanup():
-    serial_port.close()
+        serial_port.close()
     
     # def read(self):
         # serial_port.
@@ -59,8 +59,8 @@ def EncodeDistanceData(distance, close_coeff, med_coeff, far_coeff):
 
     return data
 
-def serial_cleanup():
-    serial_port.close()
+# def serial_cleanup():
+    # serial_port.close()
 
 # Max
 # 00 = off, 01 = far, 10 = med, 11 = close

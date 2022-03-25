@@ -674,7 +674,7 @@ def main(args):
     osdsinkpad = nvosd.get_static_pad("sink")
     if not osdsinkpad:
         sys.stderr.write(" Unable to get sink pad of nvosd \n")
-    video_parser_src.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
+    osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
 
     # We are going to add a GST_PAD_PROBE_TYPE_IDLE Probe. We use an IDLE probe here as we’re not interested in the data causing the callback call 
     #osdsinkpad.add_probe(Gst.PadProbeType.IDLE, osd_sink_pad_idle_probe, 1)

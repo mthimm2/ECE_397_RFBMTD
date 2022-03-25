@@ -252,12 +252,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         location_list = ['Left','Center','Right']
         max_coeff = max(coeff)
         max_index = coeff.index(max_coeff)
-        location=location_list[max_index]
-
-        # # FIXME Delete ME! Debug to test exit call
-        # if location == 'Center':
-        #     print('Exit program')
-        #     exit_call()            
+        location=location_list[max_index]     
 
         # Distance estimation function:
         # distance = c_coeff*var 
@@ -323,7 +318,11 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     
     return Gst.PadProbeReturn.OK	
 
+# We process Non-Critical Data Here.
+def osd_sink_pad_idle_probe(pad,info):
+    print("Osd_sink_pad is IDLE")
 
+    return Gst.PadProbeReturn.OK
 
 # TODO Add transfor to be queue for arch 64. 
 def main(args):
@@ -677,6 +676,8 @@ def main(args):
         sys.stderr.write(" Unable to get sink pad of nvosd \n")
     osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
 
+    # We are going to add a GST_PAD_PROBE_TYPE_IDLE Probe. We use an IDLE probe here as we’re not interested in the data causing the callback call 
+    osdsinkpad.add_probe(Gst.PadProbeType.IDLE, osd_sink_pad_idle_probe)
 
     print("Starting pipeline \n")
 
@@ -729,6 +730,9 @@ def parse_args():
 def exit_call():
     global pipeline
     global bus
+    global loop
+
+    
     pipeline.send_event(Gst.Event.new_eos())
     print("Waiting for the EOS message on the bus")
     bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)

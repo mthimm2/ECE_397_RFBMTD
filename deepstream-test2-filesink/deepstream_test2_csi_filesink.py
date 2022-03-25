@@ -332,13 +332,20 @@ def main(args):
         # Since the data format in the input file is elementary h264 stream,
         # we need a h264parser
         print("Creating H264Parser \n")
-        h264parser = Gst.ElementFactory.make("h264parse", "h264-parser")
-        if not h264parser:
+        
+        h264parser_input = Gst.ElementFactory.make("h264parse", "h264-parser_input")
+        if not h264parser_input:
             sys.stderr.write(" Unable to create h264 parser \n")
         
-        # Use nvdec_h264 for hardware accelerated decode on GPU
+
+        # Create a caps filter for NVMM and resolution scaling
+        caps_decoder = Gst.ElementFactory.make("capsfilter", "filter")
+        caps_decoder.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM), format=I420"))
+
+
+        # Use nvdec_h264 for hardware accelerated decode on GPU|   was nvv4l2decoder trying omxh264dec
         print("Creating Decoder \n")
-        decoder = Gst.ElementFactory.make("nvv4l2decoder", "nvv4l2-decoder")
+        decoder = Gst.ElementFactory.make("omxh264dec", "nvv4l2-decoder")
         if not decoder:
             sys.stderr.write(" Unable to create Nvv4l2 Decoder \n")
     
@@ -526,8 +533,9 @@ def main(args):
     pipeline.add(source)
 
     if input_file != None:
-        pipeline.add(h264parser)
+        pipeline.add(h264parser_input)
         pipeline.add(decoder)
+        pipeline.add(caps_decoder)
 
     pipeline.add(nvvidconv_src)
     pipeline.add(caps_nvvidconv_src)
@@ -552,8 +560,8 @@ def main(args):
     # we link the elements together
     print("Linking elements in the Pipeline \n")
     if input_file != None:
-        source.link(h264parser)
-        h264parser.link(decoder)
+        source.link(h264parser_input)
+        h264parser_input.link(decoder)
         decoder.link(nvvidconv_src)
     else:
         source.link(nvvidconv_src)

@@ -318,11 +318,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     
     return Gst.PadProbeReturn.OK	
 
-# We process Non-Critical Data Here. NOTICE: THIS IS A BLOCKING FUNCTION BUFFER WILL BE HALTED. Looping is going to be costly
-def osd_sink_pad_idle_probe(pad,info):
-    print("Video Parser is IDLE")
 
-    return Gst.PadProbeReturn.OK
 
 # TODO Add transfor to be queue for arch 64. 
 def main(args):
@@ -676,9 +672,7 @@ def main(args):
         sys.stderr.write(" Unable to get sink pad of nvosd \n")
     osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
 
-    # We are going to add a GST_PAD_PROBE_TYPE_IDLE Probe. We use an IDLE probe here as we’re not interested in the data causing the callback call 
-    #osdsinkpad.add_probe(Gst.PadProbeType.IDLE, osd_sink_pad_idle_probe, 1)
-
+    
     print("Starting pipeline \n")
 
     # start play back and listed to events

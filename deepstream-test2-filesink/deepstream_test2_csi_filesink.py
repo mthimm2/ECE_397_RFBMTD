@@ -151,6 +151,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # Get list of the objects in frames' metadata
         l_obj=frame_meta.obj_meta_list
 
+        obj_meta = None
         while l_obj is not None:
             try:
                 # Casting l_obj.data to pyds.NvDsObjectMeta
@@ -291,6 +292,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         l_data=1
         c_data=2
         r_data=3
+
+        print(obj_meta.object_id)
         # Cyclist's right side [object is passing close right (cyclist rear POV)]
         elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
             uart_transmission.send(l_data + c_data + "1" + o_data)

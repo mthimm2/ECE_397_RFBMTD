@@ -324,32 +324,38 @@ void ledCntl()
   }
 
   /* BATTERY LED */
-  if(receivedChars[4] == '3') 
+  if(receivedChars[4] == '4') 
   {
     Serial.print("[bat >75%] ");
     blink_num_times(4, bat);
 
   } 
   
-  else if (receivedChars[4] == '2') 
+  else if (receivedChars[4] == '3') 
   {
     Serial.print("[bat >50%] ");
     blink_num_times(3, bat);
 
   } 
   
-  else if (receivedChars[4] == '1') 
+  else if (receivedChars[4] == '2') 
   {
     Serial.print("[bat >25%] ");
     blink_num_times(2, bat);
 
   } 
   
-  else 
+  else if (receivedChars[4] == '1')
   {
     Serial.print("[bat <25%] ");
     blink_num_times(1, bat);
   }  
+
+  else 
+  {
+    Serial.print("[bat OFF] ");
+    digitalWrite(bat, LOW);
+  }
 
   // Other Functions if needed
   // if (receivedChars[5] == '1') {

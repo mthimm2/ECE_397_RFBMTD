@@ -110,9 +110,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
     # Constants that represent when a vehicle is close, medium, or far away.
     # Meant to line up with the coefficients that we obtain from detection processing below.
-    CLOSE_COEFF = 260
-    MED_COEFF = 180
-    FAR_COEFF = 130
+    CLOSE_WIDTH = 260
+    MED_WIDTH = 180
+    FAR_WIDTH = 130
 
     # Debug Default index for class name, Used for Printing out what object is detected on screen.
     #class_id_index = 4
@@ -179,7 +179,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             #print(info_tuple)
            
             # Initialize the object and insert it into the dictionary if not already provided
-            if obj_meta.object_id not in history_dict:
+            if obj_meta.object_id not in history_dict and obj_meta.object_id is 0:
                 history_dict[obj_meta.object_id]['delta_w'] = 0
                 history_dict[obj_meta.object_id]['delta_h'] = 0
                 history_dict[obj_meta.object_id]['direction'] = None
@@ -188,7 +188,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 history_dict[obj_meta.object_id]['tlv'] = obj_tlv
                 history_dict[obj_meta.object_id]['brv'] = obj_brv
                 
-            else:
+            elif obj_meta.object_id is 0:
                 history_dict[obj_meta.object_id]['delta_w'] = history_dict[obj_meta.object_id]['width'] - obj_bb_coords.width
                 history_dict[obj_meta.object_id]['delta_h'] = history_dict[obj_meta.object_id]['height'] - obj_bb_coords.height
                 history_dict[obj_meta.object_id]['direction'] = 'left' if obj_tlv[0] > history_dict[obj_meta.object_id]['tlv'][0] else 'right' if obj_tlv[0] != history_dict[obj_meta.object_id]['tlv'][0] else None
@@ -199,7 +199,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             # If an object is determined to be approaching us, we allow it to be placed into the 
             # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame            
-            if history_dict[info_tuple[2]]['delta'] >= 0:
+            if history_dict[info_tuple[2]]['delta_w'] >= 0:
                 if obj_center_coords[0] < RIGHT[1]:
                     right_det.append(info_tuple)
                 elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
@@ -209,7 +209,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             # Clean out the history dictionary of all of the objects that were moving away.
             for key, value in history_dict.items():
-                if value['delta'] < 0:
+                if value['delta_w'] < 0:
                     history_dict.pop(key)
 
         # Determine closes object in each frame
@@ -223,9 +223,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         '''
         # Ratio of bounding box width to width of the frame
         # Serves as a rudimentary form of how close an object is
-        l_coeff = l_max_width / STANDARD_FRAME_WIDTH
-        r_coeff = r_max_width / STANDARD_FRAME_WIDTH
-        c_coeff = c_max_width / STANDARD_FRAME_WIDTH
+        # l_coeff = l_max_width / STANDARD_FRAME_WIDTH
+        # r_coeff = r_max_width / STANDARD_FRAME_WIDTH
+        # c_coeff = c_max_width / STANDARD_FRAME_WIDTH
 
         # Dubug width list for data recording. 
         # width_list = [l_max_width,c_max_width,r_max_width]
@@ -250,13 +250,13 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             Other Functions => TBD
         '''
 
-        l_data  = EncodeDistanceData(l_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
-        c_data  = EncodeDistanceData(c_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
-        r_data  = EncodeDistanceData(r_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
+        l_data  = EncodeDistanceData(l_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
+        c_data  = EncodeDistanceData(c_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
+        r_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
 
         # Battery functions 
-        bus = smbus.SMBus(1)    # TODO: check whether or not to leave this here or before loop
-        battery_cap = readCapacity(bus)
+        bat_bus = smbus.SMBus(1)    # TODO: check whether or not to leave this here or before loop
+        battery_cap = readCapacity(bat_bus)
         b_data = ""
         
         if b_data != prev_b_data:

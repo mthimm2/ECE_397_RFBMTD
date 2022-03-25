@@ -119,17 +119,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     l_frame = batch_meta.frame_meta_list
     while l_frame is not None:
         try:
-
-            # Lists for objects detected in LRC regions
-            left_det, center_det, right_det = [], [], []
-
-
-            # Note that l_frame.data needs a cast to pyds.NvDsFrameMeta
-            # The casting is done by pyds.glist_get_nvds_frame_meta()
-            # The casting also keeps ownership of the underlying memory
-            # in the C code, so the Python garbage collector will leave
-            # it alone.
-            #frame_meta = pyds.glist_get_nvds_frame_meta(l_frame.data)
             frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
         except StopIteration:
             break

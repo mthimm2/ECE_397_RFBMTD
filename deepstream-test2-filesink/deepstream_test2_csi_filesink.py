@@ -330,6 +330,7 @@ def main(args):
     GObject.threads_init()
     Gst.init(None)
  
+    # Start of Pipeline Setup -----------------------------------------------------------------------------------------------------------------------
     # Create Pipeline element that will form a connection of other elements
     print("Creating Pipeline \n ")
     pipeline = Gst.Pipeline()

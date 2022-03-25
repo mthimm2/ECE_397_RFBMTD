@@ -81,6 +81,31 @@ g_eos_list = [False] * MAX_NUM_SOURCES
 # History dictionary for the past LCR detections
 history_dict = {}
 
+
+# Constants for Location Determination
+# We know that each frame coming in has the same dimensions for 720p capture
+STANDARD_FRAME_WIDTH = 1280
+STANDARD_FRAME_HEIGHT = 720
+
+# This lets us statically define the LCR regions
+# These numbers reflect that fact That we're looking behind us. Hence right is on the left of the frame.
+RIGHT = (0, STANDARD_FRAME_WIDTH / 3)
+CENTER = (STANDARD_FRAME_WIDTH / 3, 2 * (STANDARD_FRAME_WIDTH / 3))
+
+# Constants that represent when a vehicle is close, medium, or far away.
+# Meant to line up with the coefficients that we obtain from detection processing below.
+CLOSE_WIDTH = 260
+MED_WIDTH = 180
+FAR_WIDTH = 130
+
+# Initialize UART_Jetson Object
+uart_transmission = UART_Jetson()
+
+# battery status (hold the last known battery level)
+prev_b_data = ""
+
+
+
 # osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
 # and update params for drawing rectangle, object information etc.
 # IMPORTANT NOTE:
@@ -101,20 +126,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
    
     batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))
 
-    # We know that each frame coming in has the same dimensions for 720p capture
-    STANDARD_FRAME_WIDTH = 1280
-    STANDARD_FRAME_HEIGHT = 720
-
-    # This lets us statically define the LCR regions
-    # These numbers reflect that fact That we're looking behind us. Hence right is on the left of the frame.
-    RIGHT = (0, STANDARD_FRAME_WIDTH / 3)
-    CENTER = (STANDARD_FRAME_WIDTH / 3, 2 * (STANDARD_FRAME_WIDTH / 3))
-
-    # Constants that represent when a vehicle is close, medium, or far away.
-    # Meant to line up with the coefficients that we obtain from detection processing below.
-    CLOSE_WIDTH = 260
-    MED_WIDTH = 180
-    FAR_WIDTH = 130
 
     # Debug Default index for class name, Used for Printing out what object is detected on screen.
     #class_id_index = 4
@@ -122,11 +133,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     # Debug: Set info_tuple default value so if l_obj is None it will be defined when debug is displaying info_tuple name.
     #info_tuple = (0,0,0)
 
-    # Initialize UART_Jetson Object
-    uart_transmission = UART_Jetson()
-
-    # battery status (hold the last known battery level)
-    prev_b_data = ""
+   
 
     
     l_frame = batch_meta.frame_meta_list
@@ -144,6 +151,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # Get list of the objects in frames' metadata
         l_obj=frame_meta.obj_meta_list
 
+        obj_meta = None
         while l_obj is not None:
             try:
                 # Casting l_obj.data to pyds.NvDsObjectMeta
@@ -281,6 +289,11 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
             uart_transmission.send("1" + c_data + r_data + o_data)
 
+        l_data=1
+        c_data=2
+        r_data=3
+
+        print(obj_meta.object_id)
         # Cyclist's right side [object is passing close right (cyclist rear POV)]
         elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
             uart_transmission.send(l_data + c_data + "1" + o_data)

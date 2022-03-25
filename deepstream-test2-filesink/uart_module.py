@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 import serial
-
+timport time
 class UART_Jetson():
 
     def __init__(self):

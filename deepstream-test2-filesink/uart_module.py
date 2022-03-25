@@ -1,34 +1,5 @@
-'''
-The stock Jetson Nano starts a console on the ttyTHS1 serial port at startup through a service. 
-The script that starts the service is nvgetty.sh which launches getty. The script is located in /etc/systemd. 
-While this does not conflict with the script presented here, consider disabling the console if you are using the serial port to avoid conflicts. 
-Note that normal udev rules will be overridden by the console while the service is running. To disable the console:
-
-$ systemctl stop nvgetty
-$ systemctl disable nvgetty
-$ udevadm trigger
-# You may want to reboot instead - Not sure what this part means yet
-
-Install the py-serial library:
-$ sudo apt-get install python3-serial
-
-Pinout:
-Jetson Pins Used:
-Pin 6 - GND
-Pin 8 - D14 - TXD (Plugs into Arduino RX)
-Pin 10 - D15 - RXD (Plugs into Arduino TX)
-
-Forum threads that may help:
-https://forums.developer.nvidia.com/t/unreliable-serial-communcation-via-the-uart-tx-rx-gpio-pins/158249/10 - Long thread with mod helping
-https://github.com/tymancjo/jetson_trials/blob/main/Pose_M.py - Guy who uses UART to communicate with Arduino
-
-Arduino References:
-https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7766-8-bit-AVR-ATmega16U4-32U4_Datasheet.pdf
-https://github.com/arduino-c/uart/blob/master/uart.c
-'''
-
 #!/usr/bin/python3
-import time
+
 import serial
 
 class UART_Jetson():

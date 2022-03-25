@@ -39,6 +39,9 @@ import pyds
 # Import Battery Module
 import battery_module
 
+# Import Uart Communication Module
+import uart_module
+
 # To Print The dot graph Gstreamer pipeline
 os.environ["GST_DEBUG_DUMP_DOT_DIR"] = "/tmp"
 os.putenv('GST_DEBUG_DUMP_DIR_DIR', '/tmp')

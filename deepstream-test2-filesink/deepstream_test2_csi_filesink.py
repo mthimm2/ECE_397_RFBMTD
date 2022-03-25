@@ -58,6 +58,21 @@ PGIE_CLASS_ID_ROADSIGN = 3
 class_id_names = ["Car","Bicycle","Person","Roadsign","No bBox"]
 
 
+# Global Declaration
+loop = None
+pipeline = None
+streammux = None
+bus = None
+
+MAX_NUM_SOURCES = 1
+g_num_sources = 0
+g_source_id_list = [0] * MAX_NUM_SOURCES
+g_eos_list = [False] * MAX_NUM_SOURCES
+# g_source_enabled = [False] * MAX_NUM_SOURCES
+# g_source_bin_list = [None] * MAX_NUM_SOURCES
+
+
+
 # osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
 # and update params for drawing rectangle, object information etc.
 # IMPORTANT NOTE:
@@ -66,7 +81,11 @@ class_id_names = ["Car","Bicycle","Person","Roadsign","No bBox"]
 # b) loops inside probe() callback could be costly in python.
 #    So users shall optimize according to their use-case.
 def osd_sink_pad_buffer_probe(pad,info,u_data):
-   
+    
+    global pipeline
+    global bus
+    global loop
+
     gst_buffer = info.get_buffer()
     if not gst_buffer:
         print("Unable to get GstBuffer ")
@@ -232,6 +251,11 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         max_index = coeff.index(max_coeff)
         location=location_list[max_index]
 
+        # # FIXME Delete ME! Debug to test exit call
+        # if location == 'Center':
+        #     print('Exit program')
+        #     exit_call()            
+
         # Distance estimation function:
         # distance = c_coeff*var 
 
@@ -297,25 +321,24 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     return Gst.PadProbeReturn.OK	
 
 
-#TODO: Fix input file bug dropping frame. 
-# Also change wait for end of stream to have a time out so the program wont hang indef. 
-# Add transfor to be queue for arch 64. 
 
-
-# TODO verify headless mode works
+# TODO Add transfor to be queue for arch 64. 
 def main(args):
+    global pipeline
+    global bus
+    global loop
+
     # Standard GStreamer initialization
     GObject.threads_init()
     Gst.init(None)
-
-    # Create gstreamer elements
+ 
     # Create Pipeline element that will form a connection of other elements
     print("Creating Pipeline \n ")
     pipeline = Gst.Pipeline()
 
     if not pipeline:
         sys.stderr.write(" Unable to create Pipeline \n")
-    
+
     # Enable Message forwarding so we can recieve filesinks EOS signal to avoid closing the pipeline before buffers flush and corrupting the mp4 file
     pipeline.set_property('message-forward', True)
 
@@ -405,9 +428,6 @@ def main(args):
     tee = Gst.ElementFactory.make("tee","nvsink-tee")
     if not tee:
         sys.stderr.write(" Unable to create nvsink-tee\n")
-    
-
-    # Finally render the osd output using 'queue for jetson pref boost. TODO: also check if queue or nvelgtransform is better
     
     queue_1 = Gst.ElementFactory.make("queue", "nvtee-queue")
     if not queue_1:
@@ -627,13 +647,17 @@ def main(args):
         #queue_1.link(sink)
         queue_1.link(transform)
         transform.link(sink)
-    else:
+    else: # Can probably remove this. Will only run on aarch64()
         nvosd.link(sink)
     
-    
+    # End of Pipeline Setup -----------------------------------------------
+
+
     
     # Print the debug dot file for the Gst pipeline graph. Location /tmp/pipeline -created when program runs.
     Gst.debug_bin_to_dot_file(pipeline, Gst.DebugGraphDetails.ALL, "pipeline")
+
+    
     # create and event loop and feed gstreamer bus mesages to it
     loop = GObject.MainLoop()
     bus = pipeline.get_bus()
@@ -661,16 +685,22 @@ def main(args):
         print("Sending an EOS event to the pipeline")
         pass
 
+    
+    
+
     # Wait for EOS before closing the pipeline Gst.CLOCK_TIME_NONE -> poll indefinitly untill message (EOS) is recieved
     # this function will block forever until a matching message was posted on the bus.
     pipeline.send_event(Gst.Event.new_eos())
     print("Waiting for the EOS message on the bus")
+
+    # Wait for 5 seconds if the EOS from downstream somehow gets terminated before reaching head it will hand. Forcing EOS will possibly corrupt mp4
     bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)
     print("Stopping pipeline")
     
-
-    # cleanup 
+    # cleanup
     pipeline.set_state(Gst.State.NULL)
+
+    
 
 # Parse and validate input arguments
 def parse_args():
@@ -692,8 +722,66 @@ def parse_args():
    
     return 0
 
-    
+# Software call to exit the program
+def exit_call():
+    global pipeline
+    global bus
+    pipeline.send_event(Gst.Event.new_eos())
+    print("Waiting for the EOS message on the bus")
+    bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)
+    print("Stopping pipeline")
+    pipeline.set_state(Gst.State.NULL)
+    print("Program Exited Sucessfully")
 
+# Bus message handeling 
+def bus_call(bus, message, loop):
+    global g_eos_list
+    t = message.type
+    if t == Gst.MessageType.EOS:
+        sys.stdout.write("End-of-stream\n")
+        loop.quit()
+    elif t==Gst.MessageType.WARNING:
+        err, debug = message.parse_warning()
+        sys.stderr.write("Warning: %s: %s\n" % (err, debug))
+    elif t == Gst.MessageType.ERROR:
+        err, debug = message.parse_error()
+        sys.stderr.write("Error: %s: %s\n" % (err, debug))
+        loop.quit()
+    elif t == Gst.MessageType.ELEMENT:
+        struct = message.get_structure()
+        #Check for stream-eos message
+        if struct is not None and struct.has_name("stream-eos"):
+            parsed, stream_id = struct.get_uint("stream-id")
+            if parsed:
+                #Set eos status of stream to True, to be deleted in delete-sources
+                print("Got EOS from stream %d" % stream_id)
+                g_eos_list[stream_id] = True
+    return True
+
+
+def stop_release_source(source_id):
+    global g_num_sources
+    global g_source_bin_list
+    global streammux
+    global pipeline
+
+    #Attempt to change status of source to be released 
+    state_return = g_source_bin_list[source_id].set_state(Gst.State.NULL)
+
+    if state_return == Gst.StateChangeReturn.SUCCESS:
+        print("STATE CHANGE SUCCESS\n")
+        pad_name = "sink_%u" % source_id
+        print(pad_name)
+        #Retrieve sink pad to be released
+        sinkpad = streammux.get_static_pad(pad_name)
+        #Send flush stop event to the sink pad, then release from the streammux
+        sinkpad.send_event(Gst.Event.new_flush_stop(False))
+        streammux.release_request_pad(sinkpad)
+        print("STATE CHANGE SUCCESS\n")
+        #Remove the source bin from the pipeline
+        pipeline.remove(g_source_bin_list[source_id])
+        source_id -= 1
+        g_num_sources -= 1
 
 if __name__ == '__main__':
     ret = parse_args()

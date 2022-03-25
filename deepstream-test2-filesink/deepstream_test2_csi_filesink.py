@@ -255,7 +255,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         r_data  = EncodeDistanceData(r_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
 
         # Battery functions 
-        bus = smbus.SMBus(1)    # TODO: check whether or not to leave this here or before loop
+        bat_bus = smbus.SMBus(1)    # TODO: check whether or not to leave this here or before loop
         battery_cap = readCapacity(bus)
         b_data = ""
         

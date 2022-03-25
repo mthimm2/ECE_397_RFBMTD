@@ -37,10 +37,10 @@ from common.bus_call import bus_call
 import pyds
 
 # Import Battery Module
-import battery_module
+from battery_module import *
 
 # Import Uart Communication Module
-import uart_module
+from uart_module import *
 
 # To Print The dot graph Gstreamer pipeline
 os.environ["GST_DEBUG_DUMP_DOT_DIR"] = "/tmp"
@@ -76,7 +76,8 @@ g_eos_list = [False] * MAX_NUM_SOURCES
 # g_source_enabled = [False] * MAX_NUM_SOURCES
 # g_source_bin_list = [None] * MAX_NUM_SOURCES
 
-
+# History dictionary for the past LCR detections
+history_dict = {}
 
 # osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
 # and update params for drawing rectangle, object information etc.
@@ -107,22 +108,32 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     RIGHT = (0, STANDARD_FRAME_WIDTH / 3)
     CENTER = (STANDARD_FRAME_WIDTH / 3, 2 * (STANDARD_FRAME_WIDTH / 3))
 
-    #[frame zero, frame one]
+    # Constants that represent when a vehicle is close, medium, or far away.
+    # Meant to line up with the coefficients that we obtain from detection processing below.
+    CLOSE_COEFF = 260
+    MED_COEFF = 180
+    FAR_COEFF = 130
 
     # Debug Default index for class name, Used for Printing out what object is detected on screen.
-    class_id_index = 4
+    #class_id_index = 4
     
     # Debug: Set info_tuple default value so if l_obj is None it will be defined when debug is displaying info_tuple name.
-    info_tuple = (0,0,0)
+    #info_tuple = (0,0,0)
+
+    # Initialize UART_Jetson Object
+    uart_transmission = UART_Jetson()
+
+    # battery status (hold the last known battery level)
+    prev_b_data = ""
 
     
     l_frame = batch_meta.frame_meta_list
     while l_frame is not None:
+
+        # Lists for objects detected in LRC regions
+        left_det, center_det, right_det = [], [], []
+
         try:
-
-            # Lists for objects detected in LRC regions
-            left_det, center_det, right_det = [], [], []
-
 
             # Note that l_frame.data needs a cast to pyds.NvDsFrameMeta
             # The casting is done by pyds.glist_get_nvds_frame_meta()
@@ -131,10 +142,13 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # it alone.
             #frame_meta = pyds.glist_get_nvds_frame_meta(l_frame.data)
             frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
+        
         except StopIteration:
             break
 
+        # Get list of the objects in frames' metadata
         l_obj=frame_meta.obj_meta_list
+
         while l_obj is not None:
             try:
                 # Casting l_obj.data to pyds.NvDsObjectMeta
@@ -146,9 +160,10 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 break
 
             # Debug for on screen display of class name 
-            class_id_index = obj_meta.class_id
+            #class_id_index = obj_meta.class_id
             
-            obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 0.0)
+            #obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 0.0)
+            
             try: 
                 l_obj=l_obj.next
             except StopIteration:
@@ -157,84 +172,57 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             #obj_bb_coords = pyds.NvBbox_Coords.cast(pyds.NvDsComp_BboxInfo.cast(obj_meta.tracker_bbox_info))
             obj_bb_coords = obj_meta.tracker_bbox_info.org_bbox_coords
 
+            # Used to determine whether or not an object is approaching or receding in frame
+            obj_bb_area = obj_bb_coords.height * obj_bb_coords.width
+
             # Construct the bounding box for this object.
             obj_tlv = (obj_bb_coords.left, obj_bb_coords.top)
             obj_brv = (obj_bb_coords.left + obj_bb_coords.width, obj_bb_coords.top + obj_bb_coords.height)
             obj_center_coords = ((obj_tlv[0] + obj_brv[0]) / 2, (obj_tlv[1] + obj_brv[1]) / 2)
 
-            # For the purpose of object distance calculation and position, we care mostly about bounding box width and bounding box center location
-            info_tuple = (obj_bb_coords.width, obj_center_coords, obj_meta.object_id)
+            # For the purpose of object distance calculation and position, we care mostly about bb width and bb center location
+            info_tuple = (obj_bb_coords.width, obj_center_coords, obj_bb_area, obj_meta.object_id)
             
-            print(info_tuple)
+            #print(info_tuple)
            
-
-            if obj_center_coords[0] < RIGHT[1]:
-                right_det.append(info_tuple)
-
-            elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
-                center_det.append(info_tuple)
-
+            # Initialize the object and insert it into the dictionary if not already provided
+            if obj_meta.object_id not in history_dict:
+                history_dict[obj_meta.object_id]['delta_w'] = 0
+                history_dict[obj_meta.object_id]['delta_h'] = 0
+                history_dict[obj_meta.object_id]['direction'] = None
+                history_dict[obj_meta.object_id]['width'] = obj_bb_coords.width
+                history_dict[obj_meta.object_id]['height'] = obj_bb_coords.height
+                history_dict[obj_meta.object_id]['tlv'] = obj_tlv
+                history_dict[obj_meta.object_id]['brv'] = obj_brv
+                
             else:
-                left_det.append(info_tuple)
+                history_dict[obj_meta.object_id]['delta_w'] = history_dict[obj_meta.object_id]['width'] - obj_bb_coords.width
+                history_dict[obj_meta.object_id]['delta_h'] = history_dict[obj_meta.object_id]['height'] - obj_bb_coords.height
+                history_dict[obj_meta.object_id]['direction'] = 'left' if obj_tlv[0] > history_dict[obj_meta.object_id]['tlv'][0] else 'right' if obj_tlv[0] != history_dict[obj_meta.object_id]['tlv'][0] else None
+                history_dict[obj_meta.object_id]['width'] = obj_bb_coords.width
+                history_dict[obj_meta.object_id]['height'] = obj_bb_coords.height
+                history_dict[obj_meta.object_id]['tlv'] = obj_tlv
+                history_dict[obj_meta.object_id]['brv'] = obj_brv
 
-            # print(right_det)
-            # print(center_det)
-            # print(left_det)
+            # If an object is determined to be approaching us, we allow it to be placed into the 
+            # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame            
+            if history_dict[info_tuple[2]]['delta'] >= 0:
+                if obj_center_coords[0] < RIGHT[1]:
+                    right_det.append(info_tuple)
+                elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
+                    center_det.append(info_tuple)
+                else:
+                    left_det.append(info_tuple)
 
-        # This variable is taller than the frame, meaning the center of any bounding box must be below it
-        # This allows us to gradually look for the minimum bounding box center y coord in each list
-        # Eric: What variable? Also What is the Use Case, like a description of what edge case this is used for?
-        Y_MIN = 721
-        l_min_buff, cent_min_buff, r_min_buff = [], [], []
-        for info_t in left_det:
-
-            # If the y coord of a bounding box's center is strictly lt Y_MIN, it must be closer by our standard
-            # Therefore, we can clear the list of all other entries and put the new lowest into the list
-            if info_t[1][1] < Y_MIN:
-                l_min_buff.clear()
-                l_min_buff.append(info_t)
-                Y_MIN = info_t[1][1]
-            
-            # We have to be careful of objects who's bounding boxs are at a similar y coordinate, but aren't actually equidistant in reality
-            # A car that's far away, but in the center of a frame may have a similar bounding box center coord to a car that's near to us and in the center of the frame
-            # So we need to have a window of similarity in case we run into this situation
-            elif Y_MIN - info_t[1][1] <= 0.1 * Y_MIN:
-                l_min_buff.append(info_t)
-            else:
-                pass
-
-        # Center segment min y coord
-        for info_t in center_det:
-            
-            if info_t[1][1] < Y_MIN:
-                cent_min_buff.clear()
-                cent_min_buff.append(info_t)
-                Y_MIN = info_t[1][1]
-
-            elif Y_MIN - info_t[1][1] <= 0.1 * Y_MIN:
-                cent_min_buff.append(info_t)
-            
-            else:
-                pass
-            
-        # Right segment min y coord
-        for info_t in right_det:
-    
-            if info_t[1][1] < Y_MIN:
-                r_min_buff.clear()
-                r_min_buff.append(info_t)
-                Y_MIN = info_t[1][1]
-            
-            elif Y_MIN - info_t[1][1] <= 0.1 * Y_MIN:
-                r_min_buff.append(info_t)
-
-            else:
-                pass
+            # Clean out the history dictionary of all of the objects that were moving away.
+            for key, value in history_dict.items():
+                if value['delta'] < 0:
+                    history_dict.pop(key)
 
         # Determine closes object in each frame
-        l_max_width = max([info_t[0] for info_t in l_min_buff]) if len(l_min_buff) > 0 else 0
-        c_max_width = max([info_t[0] for info_t in cent_min_buff]) if len(cent_min_buff) > 0 else 0
-        r_max_width = max([info_t[0] for info_t in r_min_buff]) if len(r_min_buff) > 0 else 0
+        l_max_width = max([info_t[0] for info_t in left_det])   if len(left_det)    > 0 else 0
+        r_max_width = max([info_t[0] for info_t in right_det])  if len(right_det)   > 0 else 0
+        c_max_width = max([info_t[0] for info_t in center_det]) if len(center_det)  > 0 else 0
 
         '''
             Do we need to have any special considerations for objects not in the center segment?
@@ -247,20 +235,68 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         c_coeff = c_max_width / STANDARD_FRAME_WIDTH
 
         # Dubug width list for data recording. 
-        width_list = [l_max_width,c_max_width,r_max_width]
-        
+        # width_list = [l_max_width,c_max_width,r_max_width]
+        # 
         # Eric: for testing get the bounding box coeff for the given region
-        coeff = [l_coeff, c_coeff,r_coeff]
-        location_list = ['Left','Center','Right']
-        max_coeff = max(coeff)
-        max_index = coeff.index(max_coeff)
-        location=location_list[max_index]     
+        # coeff = [l_coeff, c_coeff,r_coeff]
+        # location_list = ['Left','Center','Right']
+        # max_coeff = max(coeff)
+        # max_index = coeff.index(max_coeff)
+        # location=location_list[max_index]     
 
         # Distance estimation function:
         # distance = c_coeff*var 
 
+        '''
+        FDU Code:
+            L | C | R | S | B | Other Function
+            0 | 1 | 2 | 3 | 4 |
+            L, C, R  => 0, 1, 2, 3     [0=off, 1=close, 2=med, 3=far]
+            S => 0, 1                  [0=off, 1=on]
+            B => 0, 1, 2, 3, 4         [0=off, 1 : < 25, 2 : >25,  3 : >50, 4 : >75]
+            Other Functions => TBD
+        '''
 
+        l_data  = EncodeDistanceData(l_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
+        c_data  = EncodeDistanceData(c_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
+        r_data  = EncodeDistanceData(r_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
 
+        # Battery functions 
+        bus = smbus.SMBus(1)    # TODO: check whether or not to leave this here or before loop
+        battery_cap = readCapacity(bus)
+        b_data = ""
+        
+        if b_data != prev_b_data:
+            if battery_cap > 75:
+                b_data = "3"
+            elif battery_cap > 50:
+                b_data = "2"
+            elif battery_cap > 25:
+                b_data = "1"
+            else:
+                b_data = "0"
+
+            prev_b_data = b_data
+
+        # Is the status LED for the battery?
+        # if so then update the information scheme as needed
+        o_data   = f"0{b_data}"   # status (0-1), battery (0-3)
+
+        # Overwrite left or right detection data sent from Jetson to Arduino Micro
+        # Cyclist's left side [object is passing close left (cyclist rear POV)]
+        if history_dict[obj_meta.object_id]['brv'][0] == 1280 and history_dict[obj_meta.object_id]['delta_h'] > 0:
+            uart_transmission.send("1" + c_data + r_data + o_data)
+
+        # Cyclist's right side [object is passing close right (cyclist rear POV)]
+        elif history_dict[obj_meta.object_id]['tlv'][0] == 0 and history_dict[obj_meta.object_id]['delta_h'] > 0:
+            uart_transmission.send(l_data + c_data + "1" + o_data)
+
+        else:
+            # object is not passing
+            pass
+
+        # Send computed data to the FDU
+        uart_transmission.send(l_data + c_data + r_data + o_data)
 
         # Debug Print of Left Center and Right Coeff
         #print(l_coeff,c_coeff, r_coeff)

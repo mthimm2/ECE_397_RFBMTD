@@ -23,8 +23,8 @@ class UART_Jetson():
         # Send data 
         serial_port.write(f"<{data}>".encode())
 
-    def read(self):
-        serial_port.
+    # def read(self):
+        # serial_port.
 
 
 # Final FDU Bit structure Implementation

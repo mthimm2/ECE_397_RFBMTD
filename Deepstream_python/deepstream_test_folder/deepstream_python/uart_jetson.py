@@ -76,16 +76,16 @@ def EncodeDistanceData(distance, close_coeff, med_coeff, far_coeff):
     data = ""
 
     if distance > close_coeff:
-        data = "1"
-
-    elif distance > med_coeff:
         data = "2"
 
-    elif distance > far_coeff:
+    elif distance > med_coeff:
         data = "3"
 
+    elif distance > far_coeff:
+        data = "4"
+
     else:
-        data = "0"
+        data = "1"
 
     return data
 

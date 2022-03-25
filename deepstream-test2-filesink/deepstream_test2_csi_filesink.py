@@ -622,7 +622,7 @@ def main(args):
     container.link(filesink_mp4)
 
     # OSD Render Pipeline
-    if is_aarch64():
+    if is_aarch64() and not no_display:
 
         #queue_1.link(sink)
         queue_1.link(transform)

@@ -36,6 +36,8 @@ from common.is_aarch_64 import is_aarch64
 from common.bus_call import bus_call
 import pyds
 
+# Import Battery Module
+import battery_module
 
 # To Print The dot graph Gstreamer pipeline
 os.environ["GST_DEBUG_DUMP_DOT_DIR"] = "/tmp"

@@ -740,7 +740,8 @@ def main(args):
     
     # cleanup Pipeline and Serial Port
     pipeline.set_state(Gst.State.NULL)
-    serial_cleanup()
+    uart_transmission.serial_cleanup()
+
 
 
     

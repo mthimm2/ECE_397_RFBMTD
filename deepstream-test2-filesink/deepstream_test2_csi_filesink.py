@@ -318,9 +318,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     
     return Gst.PadProbeReturn.OK	
 
-# We process Non-Critical Data Here.
+# We process Non-Critical Data Here. NOTICE: THIS IS A BLOCKING FUNCTION BUFFER WILL BE HALTED. Looping is going to be costly
 def osd_sink_pad_idle_probe(pad,info):
-    print("Osd_sink_pad is IDLE")
+    print("Video Parser is IDLE")
 
     return Gst.PadProbeReturn.OK
 
@@ -674,10 +674,10 @@ def main(args):
     osdsinkpad = nvosd.get_static_pad("sink")
     if not osdsinkpad:
         sys.stderr.write(" Unable to get sink pad of nvosd \n")
-    osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
+    video_parser_src.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
 
     # We are going to add a GST_PAD_PROBE_TYPE_IDLE Probe. We use an IDLE probe here as we’re not interested in the data causing the callback call 
-    osdsinkpad.add_probe(Gst.PadProbeType.IDLE, osd_sink_pad_idle_probe)
+    #osdsinkpad.add_probe(Gst.PadProbeType.IDLE, osd_sink_pad_idle_probe, 1)
 
     print("Starting pipeline \n")
 
@@ -726,6 +726,14 @@ def parse_args():
    
     return 0
 
+# Other Exit Call - TODO see if this exits more gracefully
+def exit_call2():
+    sys.exit(main(sys.argv))
+    
+    return 0
+
+
+
 # Software call to exit the program
 def exit_call():
     global pipeline
@@ -739,6 +747,8 @@ def exit_call():
     print("Stopping pipeline")
     pipeline.set_state(Gst.State.NULL)
     print("Program Exited Sucessfully")
+    
+    return 0
 
 # Bus message handeling 
 def bus_call(bus, message, loop):
@@ -766,29 +776,29 @@ def bus_call(bus, message, loop):
     return True
 
 
-def stop_release_source(source_id):
-    global g_num_sources
-    global g_source_bin_list
-    global streammux
-    global pipeline
+# def stop_release_source(source_id):
+#     global g_num_sources
+#     global g_source_bin_list
+#     global streammux
+#     global pipeline
 
-    #Attempt to change status of source to be released 
-    state_return = g_source_bin_list[source_id].set_state(Gst.State.NULL)
+#     #Attempt to change status of source to be released 
+#     state_return = g_source_bin_list[source_id].set_state(Gst.State.NULL)
 
-    if state_return == Gst.StateChangeReturn.SUCCESS:
-        print("STATE CHANGE SUCCESS\n")
-        pad_name = "sink_%u" % source_id
-        print(pad_name)
-        #Retrieve sink pad to be released
-        sinkpad = streammux.get_static_pad(pad_name)
-        #Send flush stop event to the sink pad, then release from the streammux
-        sinkpad.send_event(Gst.Event.new_flush_stop(False))
-        streammux.release_request_pad(sinkpad)
-        print("STATE CHANGE SUCCESS\n")
-        #Remove the source bin from the pipeline
-        pipeline.remove(g_source_bin_list[source_id])
-        source_id -= 1
-        g_num_sources -= 1
+#     if state_return == Gst.StateChangeReturn.SUCCESS:
+#         print("STATE CHANGE SUCCESS\n")
+#         pad_name = "sink_%u" % source_id
+#         print(pad_name)
+#         #Retrieve sink pad to be released
+#         sinkpad = streammux.get_static_pad(pad_name)
+#         #Send flush stop event to the sink pad, then release from the streammux
+#         sinkpad.send_event(Gst.Event.new_flush_stop(False))
+#         streammux.release_request_pad(sinkpad)
+#         print("STATE CHANGE SUCCESS\n")
+#         #Remove the source bin from the pipeline
+#         pipeline.remove(g_source_bin_list[source_id])
+#         source_id -= 1
+#         g_num_sources -= 1
 
 if __name__ == '__main__':
     ret = parse_args()

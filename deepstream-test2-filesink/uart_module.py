@@ -17,16 +17,22 @@ class UART_Jetson():
         # Wait a second to let the port initialize
         time.sleep(1)
 
+        serial_port.write("<Init>".encode())
+
     def send(self, data):
         # Send data 
         serial_port.write(f"<{data}>".encode())
 
+    def read(self):
+        serial_port.
 
-# Final FDU Implementation
+
+# Final FDU Bit structure Implementation
 
 '''
-  L | C | R | S | B | Other Function
-  0 | 1 | 2 | 3 | 4 |
+         | Car LEDs  |sys|bat| 
+         | L | C | R | S | B | Other Function
+ Bit #:  | 0 | 1 | 2 | 3 | 4 |
   L, C, R  => 0, 1, 2, 3     [0=off, 1=close, 2=med, 3=far]
   S => 0, 1                  [0=off, 1=on]
   B => 0, 1, 2, 3, 4         [0=off, 1 : < 25, 2 : >25,  3 : >50, 4 : >75]
@@ -49,6 +55,9 @@ def EncodeDistanceData(distance, close_coeff, med_coeff, far_coeff):
         data = "0"
 
     return data
+
+def serial_cleanup():
+    serial_port.close()
 
 # Max
 # 00 = off, 01 = far, 10 = med, 11 = close

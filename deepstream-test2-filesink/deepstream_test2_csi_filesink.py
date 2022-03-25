@@ -698,8 +698,10 @@ def main(args):
     bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)
     print("Stopping pipeline")
     
-    # cleanup
+    # cleanup Pipeline and Serial Port
     pipeline.set_state(Gst.State.NULL)
+    serial_cleanup()
+
 
     
 

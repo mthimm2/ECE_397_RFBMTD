@@ -38,6 +38,8 @@ import pyds
 
 # Import Battery Module
 from battery_module import *
+bat_bus = smbus.SMBus(1)
+
 
 # Import Uart Communication Module
 from uart_module import *
@@ -255,7 +257,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         r_data  = EncodeDistanceData(r_coeff, CLOSE_COEFF, MED_COEFF, FAR_COEFF)
 
         # Battery functions 
-        bat_bus = smbus.SMBus(1)    # TODO: check whether or not to leave this here or before loop
         battery_cap = readCapacity(bat_bus)
         b_data = ""
         

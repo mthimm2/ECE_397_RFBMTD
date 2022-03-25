@@ -84,25 +84,25 @@ history_dict = {}
 
 # Constants for Location Determination
 # We know that each frame coming in has the same dimensions for 720p capture
-    STANDARD_FRAME_WIDTH = 1280
-    STANDARD_FRAME_HEIGHT = 720
+STANDARD_FRAME_WIDTH = 1280
+STANDARD_FRAME_HEIGHT = 720
 
-    # This lets us statically define the LCR regions
-    # These numbers reflect that fact That we're looking behind us. Hence right is on the left of the frame.
-    RIGHT = (0, STANDARD_FRAME_WIDTH / 3)
-    CENTER = (STANDARD_FRAME_WIDTH / 3, 2 * (STANDARD_FRAME_WIDTH / 3))
+# This lets us statically define the LCR regions
+# These numbers reflect that fact That we're looking behind us. Hence right is on the left of the frame.
+RIGHT = (0, STANDARD_FRAME_WIDTH / 3)
+CENTER = (STANDARD_FRAME_WIDTH / 3, 2 * (STANDARD_FRAME_WIDTH / 3))
 
-    # Constants that represent when a vehicle is close, medium, or far away.
-    # Meant to line up with the coefficients that we obtain from detection processing below.
-    CLOSE_WIDTH = 260
-    MED_WIDTH = 180
-    FAR_WIDTH = 130
-    
-    # Initialize UART_Jetson Object
-    uart_transmission = UART_Jetson()
+# Constants that represent when a vehicle is close, medium, or far away.
+# Meant to line up with the coefficients that we obtain from detection processing below.
+CLOSE_WIDTH = 260
+MED_WIDTH = 180
+FAR_WIDTH = 130
 
-    # battery status (hold the last known battery level)
-    prev_b_data = ""
+# Initialize UART_Jetson Object
+uart_transmission = UART_Jetson()
+
+# battery status (hold the last known battery level)
+prev_b_data = ""
 
 
 

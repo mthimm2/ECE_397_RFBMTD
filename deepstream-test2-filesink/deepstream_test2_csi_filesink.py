@@ -101,7 +101,7 @@ FAR_WIDTH = 130
 
 # Turn on and off Functionality
 battery_connected = False
-serial_connected = False
+serial_connected = True
 
 
 if serial_connected:

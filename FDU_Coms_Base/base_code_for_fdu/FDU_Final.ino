@@ -287,8 +287,8 @@ void ledCntl()
   else if (receivedChars[2] == '1')
   {
     Serial.print("[redR ON] ");
-    digitalWrite(redR, LOW);
-    digitalWrite(yelR, HIGH);
+    digitalWrite(redR, HIGH);
+    digitalWrite(yelR, LOW);
     digitalWrite(grnR, LOW);
   }
 

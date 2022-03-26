@@ -282,8 +282,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             r_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
             o_data  = "00"
 
-            if battery_connected
-        :
+            if battery_connected:
                 # Battery functions 
                 battery_cap = readCapacity(bat_bus)
                 battery_data = ""
@@ -302,8 +301,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             # Is the status LED for the battery?
             # if so then update the information scheme as needed
-            if battery_connected
-        :
+            if battery_connected:
                 o_data = f"0{battery_data}"   # status (0-1), battery (0-3)
             else:
                 o_data = '00'
@@ -313,8 +311,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # r_data=3
 
             # Send Serial Data
-            if serial_connected
-        :
+            if serial_connected:
                 # Passing Case for the right or left. 
 
                 # Overwrite left or right detection data sent from Jetson to Arduino Micro

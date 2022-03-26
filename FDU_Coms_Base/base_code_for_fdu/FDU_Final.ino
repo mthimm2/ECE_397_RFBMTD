@@ -9,17 +9,17 @@
 
 // Left: redL,yelL,grnL. Center: redM, yelM,grnM. Right: redR,yelR,grnR
 
-#define redL 18
-#define redM 4
-#define redR 17
-#define yelL 8
-#define yelM 7
-#define yelR 19
-#define grnL 15
-#define grnM 14
-#define grnR 16
-#define sts 9
-#define bat 10
+// #define redM 4
+// #define yelM 7
+// #define yelL 8
+// #define sts 9
+// #define bat 10
+// #define grnM 14
+// #define grnL 15
+// #define grnR 16
+// #define redR 17
+// #define redL 27
+// #define yelR 28
 
 // Intializing an array that receives chars 
 const byte numChars = 32;
@@ -31,18 +31,24 @@ void setup() {
     Serial.begin(9600);
     Serial.println("<Arduino is ready>");
 
+    // Set LED pins as outputs 
+    DDRD |= 0x90;
+    DDRB |= 0x07;
+    DDRC |= 0x3F;
+
     // Setup LEDS
-    pinMode(redL,OUTPUT);
-    pinMode(redM,OUTPUT);
-    pinMode(redR,OUTPUT);
-    pinMode(yelL,OUTPUT);
-    pinMode(yelM,OUTPUT);
-    pinMode(yelR,OUTPUT);
-    pinMode(grnL,OUTPUT);
-    pinMode(grnM,OUTPUT);
-    pinMode(grnR,OUTPUT);
-    pinMode(sts,OUTPUT);
-    pinMode(bat,OUTPUT);  
+    // pinMode(redL,OUTPUT);
+    // pinMode(redM,OUTPUT);
+    // pinMode(redR,OUTPUT);
+    // pinMode(yelL,OUTPUT);
+    // pinMode(yelM,OUTPUT);
+    // pinMode(yelR,OUTPUT);
+    // pinMode(grnL,OUTPUT);
+    // pinMode(grnM,OUTPUT);
+    // pinMode(grnR,OUTPUT);
+    // pinMode(sts,OUTPUT);
+    // pinMode(bat,OUTPUT);
+
 
     // Run a Lamp Check
     lampCheck();
@@ -66,33 +72,39 @@ void loop() {
 void allOff()
 {
     // Turn off LEDs
-    digitalWrite(bat,  LOW);
-    digitalWrite(sts,  LOW);
-    digitalWrite(redL, LOW);
-    digitalWrite(redM, LOW);
-    digitalWrite(redR, LOW);
-    digitalWrite(yelL, LOW);
-    digitalWrite(yelM, LOW);
-    digitalWrite(yelR, LOW);
-    digitalWrite(grnL, LOW);
-    digitalWrite(grnM, LOW);
-    digitalWrite(grnR, LOW);
+    // digitalWrite(bat,  LOW);
+    // digitalWrite(sts,  LOW);
+    // digitalWrite(redL, LOW);
+    // digitalWrite(redM, LOW);
+    // digitalWrite(redR, LOW);
+    // digitalWrite(yelL, LOW);
+    // digitalWrite(yelM, LOW);
+    // digitalWrite(yelR, LOW);
+    // digitalWrite(grnL, LOW);
+    // digitalWrite(grnM, LOW);
+    // digitalWrite(grnR, LOW);
+    PORTD &= 0x6F;
+    PORTB &= 0xF8;
+    PORTC &= 0xC0;
 }
 
 void allOn()
 {
     // Turn on LEDs
-    digitalWrite(bat,  HIGH);
-    digitalWrite(sts,  HIGH);
-    digitalWrite(redL, HIGH);
-    digitalWrite(redM, HIGH);
-    digitalWrite(redR, HIGH);
-    digitalWrite(yelL, HIGH);
-    digitalWrite(yelM, HIGH);
-    digitalWrite(yelR, HIGH);
-    digitalWrite(grnL, HIGH);
-    digitalWrite(grnM, HIGH);
-    digitalWrite(grnR, HIGH);
+    // digitalWrite(bat,  HIGH);
+    // digitalWrite(sts,  HIGH);
+    // digitalWrite(redL, HIGH);
+    // digitalWrite(redM, HIGH);
+    // digitalWrite(redR, HIGH);
+    // digitalWrite(yelL, HIGH);
+    // digitalWrite(yelM, HIGH);
+    // digitalWrite(yelR, HIGH);
+    // digitalWrite(grnL, HIGH);
+    // digitalWrite(grnM, HIGH);
+    // digitalWrite(grnR, HIGH);
+    PORTD |= 0x90;
+    PORTB |= 0x07;
+    PORTC |= 0x3F;
 }
 
 // Send and receive communication scheme using "<" (start) & ">" (end)
@@ -129,48 +141,63 @@ void recvWithStartEndMarkers() {
 }
 
 void lampCheck() {
+
   /* SETUP */
-  if(receivedChars[0] == '1' && receivedChars[1] == '1' && receivedChars[2] == '1' && receivedChars[3] == '1' && receivedChars[4] == '1' && receivedChars[5] == '1' && receivedChars[6] == '1' && receivedChars[7] == '1') 
-  {
-      Serial.print("[Starting Setup] ");
-      allOn();
-      delay(3000); // delay for 3 sec
-      allOff();
+  Serial.print("[Starting Setup] ");
+  allOn();
+  delay(1000); // delay for 3 sec
+  allOff();
 
-  } 
-  
-  else {
-      Serial.print("[Setup is OFF] ");
-
-  }
 }
 
 void controlCheck() {
   allOff();
 
-  // Turn on LEDs
-  digitalWrite(redL, HIGH);
-  delay(1000); // delay for 1 sec
-  digitalWrite(redM, HIGH);
-  delay(1000); // delay for 1 sec
-  digitalWrite(redR, HIGH);
-  delay(1000); // delay for 1 sec
-  digitalWrite(yelR, HIGH);
-  delay(1000); // delay for 1 sec
-  digitalWrite(yelM, HIGH);
-  delay(1000); // delay for 1 sec
+// #define redM 4
+// #define yelM 7
+// #define yelL 8
+// #define sts 9
+// #define bat 10
+// #define grnM 14
+// #define grnL 15
+// #define grnR 16
+// #define redR 17
+// #define redL 27
+// #define yelR 28
 
-  digitalWrite(yelL, HIGH);
+  // Turn on LEDs
+  // digitalWrite(redL, HIGH);
+  PORTC |= 0x10;
   delay(1000); // delay for 1 sec
-  digitalWrite(grnL, HIGH);
+  // digitalWrite(redM, HIGH);
+  PORTD |= 0x10;
   delay(1000); // delay for 1 sec
-  digitalWrite(grnM, HIGH);
+  // digitalWrite(redR, HIGH);
+  PORTB |= 0x20;
   delay(1000); // delay for 1 sec
-  digitalWrite(grnR, HIGH);
+  // digitalWrite(yelR, HIGH);
+  PORTC |= 0x20;
   delay(1000); // delay for 1 sec
-  digitalWrite(bat,  HIGH);
+  // digitalWrite(yelM, HIGH);
+  PORTD |= 0x80;
   delay(1000); // delay for 1 sec
-  digitalWrite(sts,  HIGH);
+  // digitalWrite(yelL, HIGH);
+  PORTB |= 0x01;
+  delay(1000); // delay for 1 sec
+  // digitalWrite(grnL, HIGH);
+  PORTC |= 0x02;
+  delay(1000); // delay for 1 sec
+  // digitalWrite(grnM, HIGH);
+  PORTC |= 0x01;
+  delay(1000); // delay for 1 sec
+  // digitalWrite(grnR, HIGH);
+  PORTC |= 0x04;
+  delay(1000); // delay for 1 sec
+  // digitalWrite(bat,  HIGH);
+  PORTB |= 0x04;
+  delay(1000); // delay for 1 sec
+  // digitalWrite(sts,  HIGH);
+  PORTB |= 0x02;
   delay(1000); // delay for 1 sec
 
   allOff();
@@ -188,9 +215,11 @@ void showNewData() {
 void blink_num_times(char num_times, char pin_number) {
     // for loop based on N
     for(char x = 0; x < num_times; ++x) {
-        digitalWrite(bat, HIGH);
+        //digitalWrite(bat, HIGH);
+        PORTB |= 0x04;
         delay(1000); // 1 sec
-        digitalWrite(bat, LOW);
+        // digitalWrite(bat, LOW);
+        PORTB &= 0xFB;
     }
 }
 
@@ -209,33 +238,49 @@ void ledCntl()
   if (receivedChars[0] == '0')
   {
     Serial.print("[Left OFF] ");
-    digitalWrite(redL, LOW);
-    digitalWrite(yelL, LOW);
-    digitalWrite(grnL, LOW);
+    // digitalWrite(redL, LOW);
+    // digitalWrite(yelL, LOW);
+    // digitalWrite(grnL, LOW);
+    // PORTC |= 0x10;
+    // PORTB |= 0x01;
+    // PORTC |= 0x02;
+    PORTC &= 0xEF;
+    PORTB &= 0xFE;
+    PORTC &= 0xFD;
   }
 
   else if (receivedChars[0] == '1')
   {
     Serial.print("[redL ON] ");
-    digitalWrite(redL, HIGH);
-    digitalWrite(yelL, LOW);
-    digitalWrite(grnL, LOW);
+    // digitalWrite(redL, HIGH);
+    // digitalWrite(yelL, LOW);
+    // digitalWrite(grnL, LOW);
+    PORTC |= 0x10;
+    PORTC &= 0xFD;
+    PORTC &= 0xEF;
   }
 
   else if (receivedChars[0] == '2')
   {
     Serial.print("[yelL ON] ");
-    digitalWrite(redL, LOW);
-    digitalWrite(yelL, HIGH);
-    digitalWrite(grnL, LOW);
+    // digitalWrite(redL, LOW);
+    // digitalWrite(yelL, HIGH);
+    // digitalWrite(grnL, LOW);
+    PORTC &= 0xEF;
+    PORTB |= 0x01;
+    PORTC &= 0xFD;
+
   }
 
   else if (receivedChars[0] == '3') 
   {
     Serial.print("[grnL ON] ");
-    digitalWrite(redL, LOW);
-    digitalWrite(yelL, LOW);
-    digitalWrite(grnL, HIGH);    
+    // digitalWrite(redL, LOW);
+    // digitalWrite(yelL, LOW);
+    // digitalWrite(grnL, HIGH);
+    PORTC &= 0xEF;
+    PORTB &= 0xFE;
+    PORTC |= 0x02;    
   }
 
   else {;}  // do nothing
@@ -244,33 +289,46 @@ void ledCntl()
   if (receivedChars[1] == '0')
   {
     Serial.print("[CENTER OFF] ");
-    digitalWrite(redM, LOW);
-    digitalWrite(yelM, LOW);
-    digitalWrite(grnM, LOW);
+    // digitalWrite(redM, LOW);
+    // digitalWrite(yelM, LOW);
+    // digitalWrite(grnM, LOW);
+    // PORTD |= 0x10;
+    // PORTD |= 0x80;
+    // PORTC |= 0x01;
+    PORTD &= 0x6F;
+    PORTC &= 0xFE;
   }
 
   else if (receivedChars[1] == '1')
   {
     Serial.print("[redM ON] ");
-    digitalWrite(redM, HIGH);
-    digitalWrite(yelM, LOW);
-    digitalWrite(grnM, LOW);
+    // digitalWrite(redM, HIGH);
+    // digitalWrite(yelM, LOW);
+    // digitalWrite(grnM, LOW);
+    PORTD |= 0x10;
+    PORTD &= 0x7F;
+    PORTC &= 0xFE;
   }
 
   else if (receivedChars[1] == '2')
   {
     Serial.print("[yelM ON] ");
-    digitalWrite(redM, LOW);
-    digitalWrite(yelM, HIGH);
-    digitalWrite(grnM, LOW);
+    // digitalWrite(redM, LOW);
+    // digitalWrite(yelM, HIGH);
+    // digitalWrite(grnM, LOW);
+    PORTD &= 0xEF;
+    PORTD |= 0x80;
+    PORTC &= 0xFE;
   }
 
   else if (receivedChars[1] == '3') 
   {
     Serial.print("[grnM ON] ");
-    digitalWrite(redM, LOW);
-    digitalWrite(yelM, LOW);
-    digitalWrite(grnM, HIGH);    
+    // digitalWrite(redM, LOW);
+    // digitalWrite(yelM, LOW);
+    // digitalWrite(grnM, HIGH); 
+    PORTD &= 0x6F;
+    PORTC |= 0x01;   
   }
 
   else {;} // do nothing
@@ -279,33 +337,46 @@ void ledCntl()
   if (receivedChars[2] == '0')
   {
     Serial.print("[RIGHT OFF] ");
-    digitalWrite(redR, LOW);
-    digitalWrite(yelR, LOW);
-    digitalWrite(grnR, LOW);
+    // digitalWrite(redR, LOW);
+    // digitalWrite(yelR, LOW);
+    // digitalWrite(grnR, LOW);
+    // PORTB |= 0x20;
+    // PORTC |= 0x20;
+    // PORTC |= 0x04;
+    PORTB &= 0xDF;
+    PORTC &= 0xDB;
   }
 
   else if (receivedChars[2] == '1')
   {
     Serial.print("[redR ON] ");
-    digitalWrite(redR, LOW);
-    digitalWrite(yelR, HIGH);
-    digitalWrite(grnR, LOW);
+    // digitalWrite(redR, HIGH);
+    // digitalWrite(yelR, LOW);
+    // digitalWrite(grnR, LOW);
+    PORTB |= 0x20;
+    PORTC &= 0xDB;
   }
 
   else if (receivedChars[2] == '2')
   {
     Serial.print("[yelR ON] ");
-    digitalWrite(redR, LOW);
-    digitalWrite(yelR, HIGH);
-    digitalWrite(grnR, LOW);
+    // digitalWrite(redR, LOW);
+    // digitalWrite(yelR, HIGH);
+    // digitalWrite(grnR, LOW);
+    PORTB &= 0xDF;
+    PORTC |= 0x20;
+    PORTC &= 0xFB;
   }
 
   else if (receivedChars[2] == '3') 
   {
     Serial.print("[grnR ON] ");
-    digitalWrite(redR, LOW);
-    digitalWrite(yelR, LOW);
-    digitalWrite(grnR, HIGH);    
+    // digitalWrite(redR, LOW);
+    // digitalWrite(yelR, LOW);
+    // digitalWrite(grnR, HIGH); 
+    PORTB &= 0xDF;
+    PORTC &= 0xDF;
+    PORTC |= 0x04;   
   }
 
   else {;} // do nothing
@@ -314,47 +385,50 @@ void ledCntl()
   if(receivedChars[3] == '1') 
   {  
     Serial.print("[Status ON] ");
-    digitalWrite(sts, HIGH);
+    // digitalWrite(sts, HIGH);
+    PORTB |= 0x02;
   }
 
   else 
   {
     Serial.print("[Status OFF] ");
-    digitalWrite(sts, LOW);
+    // digitalWrite(sts, LOW);
+    PORTB &= 0xFD;
   }
 
   /* BATTERY LED */
   if(receivedChars[4] == '4') 
   {
     Serial.print("[bat >75%] ");
-    blink_num_times(4, bat);
+    // blink_num_times(4, bat);
 
   } 
   
   else if (receivedChars[4] == '3') 
   {
     Serial.print("[bat >50%] ");
-    blink_num_times(3, bat);
+    // blink_num_times(3, bat);
 
   } 
   
   else if (receivedChars[4] == '2') 
   {
     Serial.print("[bat >25%] ");
-    blink_num_times(2, bat);
+    // blink_num_times(2, bat);
 
   } 
   
   else if (receivedChars[4] == '1')
   {
     Serial.print("[bat <25%] ");
-    blink_num_times(1, bat);
+    // blink_num_times(1, bat);
   }  
 
   else 
   {
     Serial.print("[bat OFF] ");
-    digitalWrite(bat, LOW);
+    // digitalWrite(bat, LOW);
+    PORTB &= 0xFB;
   }
 
   // Other Functions if needed

@@ -331,6 +331,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                     # object is not passing
                     uart_transmission.send(l_data + c_data + r_data + o_data)
 
+        else:
+            uart_transmission.send('00' + '00' + '00' + '00')
 
         # Debug Print of Left Center and Right Coeff
         #print(l_coeff,c_coeff, r_coeff)

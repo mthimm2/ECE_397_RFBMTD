@@ -32,9 +32,9 @@ void setup() {
     Serial.println("<Arduino is ready>");
 
     // Set LED pins as outputs 
-    DDRD |= 0x90;
     DDRB |= 0x07;
     DDRC |= 0x3F;
+    DDRD |= 0x90;
 
     // Setup LEDS
     // pinMode(redL,OUTPUT);
@@ -83,9 +83,9 @@ void allOff()
     // digitalWrite(grnL, LOW);
     // digitalWrite(grnM, LOW);
     // digitalWrite(grnR, LOW);
-    PORTD &= 0x6F;
     PORTB &= 0xF8;
     PORTC &= 0xC0;
+    PORTD &= 0x6F;
 }
 
 void allOn()
@@ -102,9 +102,9 @@ void allOn()
     // digitalWrite(grnL, HIGH);
     // digitalWrite(grnM, HIGH);
     // digitalWrite(grnR, HIGH);
-    PORTD |= 0x90;
     PORTB |= 0x07;
     PORTC |= 0x3F;
+    PORTD |= 0x90;
 }
 
 // Send and receive communication scheme using "<" (start) & ">" (end)
@@ -256,8 +256,8 @@ void ledCntl()
     // digitalWrite(yelL, LOW);
     // digitalWrite(grnL, LOW);
     PORTC |= 0x10;
+    PORTB &= 0xFE;
     PORTC &= 0xFD;
-    PORTC &= 0xEF;
   }
 
   else if (receivedChars[0] == '2')

@@ -304,11 +304,13 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             else:
                 o_data = 0
 
-            l_data=1
-            c_data=2
-            r_data=3
+            # l_data=1
+            # c_data=2
+            # r_data=3
 
             if SERIAL_FLAG:
+                # Passing Case for the right or left. 
+
                 # Overwrite left or right detection data sent from Jetson to Arduino Micro
                 # Cyclist's left side [object is passing close left (cyclist rear POV)]
                 if history_dict[obj_meta.object_id]['brv'][0] >= (1280 - 128) and history_dict[obj_meta.object_id]['delta_h'] > 0:
@@ -354,7 +356,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # allocated string. Use pyds.get_string() to get the string content.
 
         # Change width to distance after calibration
-        py_nvosd_text_params.display_text = ""
+        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {} | Distance Level: {}".format(location,l_data+c_data+r_data, )
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10

@@ -235,6 +235,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 if value['delta_w'] < 0:
                     history_dict.pop(key)
 
+        # Debug 
+        location = 'None'
+
         if obj_meta is not None:
 
             # Determine closes object in each frame
@@ -302,7 +305,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             if BATTERY_FLAG:
                 o_data = f"0{battery_data}"   # status (0-1), battery (0-3)
             else:
-                o_data = "00"
+                o_data = '0'
 
             # l_data=1
             # c_data=2
@@ -357,7 +360,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # allocated string. Use pyds.get_string() to get the string content.
 
         # Change width to distance after calibration
-        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {}".format(location,l_data+c_data+r_data, )
+        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {}".format(location,l_data+c_data+r_data)
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10

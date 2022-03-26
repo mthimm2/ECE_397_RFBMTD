@@ -302,6 +302,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         else:
             o_data = 0
 
+        # Debug test the display Serial
         l_data=1
         c_data=2
         r_data=3

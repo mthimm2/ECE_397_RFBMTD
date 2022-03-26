@@ -201,7 +201,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             #print(info_tuple)
            
             # Initialize the object and insert it into the dictionary if not already provided
-            if obj_meta.object_id not in history_dict and obj_meta.object_id is 0:
+            if obj_meta.object_id not in history_dict and obj_meta.class_id is 0:
                 history_dict[obj_meta.object_id] = {}
                 history_dict[obj_meta.object_id]['delta_w'] = 0
                 history_dict[obj_meta.object_id]['delta_h'] = 0

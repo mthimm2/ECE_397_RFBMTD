@@ -770,8 +770,7 @@ def main(args):
     
     # cleanup Pipeline and Serial Port
     pipeline.set_state(Gst.State.NULL)
-    if serial_connected
-:
+    if serial_connected:
         uart_transmission.serial_cleanup()
 
 

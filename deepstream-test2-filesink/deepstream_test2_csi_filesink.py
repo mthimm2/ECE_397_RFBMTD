@@ -200,8 +200,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             
             #print(info_tuple)
            
-            # Initialize the object and insert it into the dictionary if not already provided
-            if obj_meta.object_id not in history_dict and obj_meta.class_id is 0:
+            # Initialize the object and insert it into the dictionary if not already provided : 0 is for car and 2 is for person
+            if obj_meta.object_id not in history_dict and obj_meta.class_id is 2:
                 history_dict[obj_meta.object_id] = {}
                 history_dict[obj_meta.object_id]['delta_w'] = 0
                 history_dict[obj_meta.object_id]['delta_h'] = 0
@@ -256,7 +256,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # width_list = [l_max_width,c_max_width,r_max_width]
             # 
             # Eric: for testing get the bounding box coeff for the given region
-            coeff = [l_coeff, c_coeff,r_coeff]
+            coeff = [l_max_width, c_max_width, r_max_width]
             location_list = ['Left','Center','Right']
             max_coeff = max(coeff)
             max_index = coeff.index(max_coeff)

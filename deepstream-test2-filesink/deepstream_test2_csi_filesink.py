@@ -307,6 +307,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             else:
                 o_data = '00'
 
+            edge_case = None
             # l_data=1
             # c_data=2
             # r_data=3
@@ -319,19 +320,19 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 # Cyclist's left side [object is passing close left (cyclist rear POV)]
                 if history_dict[obj_meta.object_id]['brv'][0] >= (1280 - 128) and history_dict[obj_meta.object_id]['delta_h'] > 0:
                     uart_transmission.send("1" + c_data + r_data + o_data)
-                    location = 'Pass on Left'
+                    edge_case = 'Pass on Left'
 
                 # Cyclist's right side [object is passing close right (cyclist rear POV)]
                 elif history_dict[obj_meta.object_id]['tlv'][0] <= 128 and history_dict[obj_meta.object_id]['delta_h'] > 0:
                     uart_transmission.send(l_data + c_data + "1" + o_data)
-                    location = 'Pass on Right'
+                    edge_case = 'Pass on Right'
 
                 else:
                     # object is not passing
                     uart_transmission.send(l_data + c_data + r_data + o_data)
 
-        else:
-            uart_transmission.send('0' + '0' + '0' + '00')
+            else:
+                uart_transmission.send('0' + '0' + '0' + '00')
 
         # Debug Print of Left Center and Right Coeff
         #print(l_coeff,c_coeff, r_coeff)
@@ -364,7 +365,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # allocated string. Use pyds.get_string() to get the string content.
 
         # Change width to distance after calibration
-        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {}".format(location,l_data+c_data+r_data+o_data)
+        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {} | {}".format(location,l_data+c_data+r_data+o_data, edge_case)
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10

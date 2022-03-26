@@ -340,11 +340,10 @@ void ledCntl()
     // digitalWrite(redR, LOW);
     // digitalWrite(yelR, LOW);
     // digitalWrite(grnR, LOW);
-    // PORTB |= 0x08;
+    // PORTC |= 0x08;
     // PORTC |= 0x20;
     // PORTC |= 0x04;
-    PORTB &= 0xF7;
-    PORTC &= 0xDB;
+    PORTC &= 0xD3;
   }
 
   else if (receivedChars[2] == '1')
@@ -353,7 +352,7 @@ void ledCntl()
     // digitalWrite(redR, HIGH);
     // digitalWrite(yelR, LOW);
     // digitalWrite(grnR, LOW);
-    PORTB |= 0x08;
+    PORTC |= 0x08;
     PORTC &= 0xDB;
   }
 
@@ -363,9 +362,8 @@ void ledCntl()
     // digitalWrite(redR, LOW);
     // digitalWrite(yelR, HIGH);
     // digitalWrite(grnR, LOW);
-    PORTB &= 0xF7;
+    PORTC &= 0xF3;
     PORTC |= 0x20;
-    PORTC &= 0xFB;
   }
 
   else if (receivedChars[2] == '3') 
@@ -374,8 +372,7 @@ void ledCntl()
     // digitalWrite(redR, LOW);
     // digitalWrite(yelR, LOW);
     // digitalWrite(grnR, HIGH); 
-    PORTB &= 0xF7;
-    PORTC &= 0xDF;
+    PORTC &= 0xD7;
     PORTC |= 0x04;   
   }
 

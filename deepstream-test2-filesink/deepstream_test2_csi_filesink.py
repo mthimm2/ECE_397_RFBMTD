@@ -240,7 +240,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         l_data  = '0'
         c_data  = '0'
         r_data  = '0'
-        
+        o_data  = '0'
+
         if obj_meta is not None:
 
             # Determine closes object in each frame
@@ -284,7 +285,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             l_data  = EncodeDistanceData(l_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
             c_data  = EncodeDistanceData(c_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
             r_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
-
+            o_data  = "00"
 
             if BATTERY_FLAG:
                 # Battery functions 

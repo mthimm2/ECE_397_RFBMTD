@@ -38,7 +38,8 @@ import pyds
 
 # Import Battery Module
 from battery_module import *
-bat_bus = smbus.SMBus(1)
+# bat_bus = smbus.SMBus(1)
+bat_bus = None
 
 
 # Import Uart Communication Module
@@ -81,7 +82,6 @@ g_eos_list = [False] * MAX_NUM_SOURCES
 # History dictionary for the past LCR detections
 history_dict = {}
 
-
 # Constants for Location Determination
 # We know that each frame coming in has the same dimensions for 720p capture
 STANDARD_FRAME_WIDTH = 1280
@@ -98,12 +98,26 @@ CLOSE_WIDTH = 260
 MED_WIDTH = 180
 FAR_WIDTH = 130
 
-# Initialize UART_Jetson Object
-uart_transmission = UART_Jetson()
+''' 
+Debug Flags
+'''
 
-# battery status (hold the last known battery level)
+BATTERY_FLAG = False
+SERIAL_FLAG = True
+
+''' 
+End of Debug Flags
+'''
+
+if SERIAL_FLAG:
+    # Initialize UART_Jetson Object
+    uart_transmission = UART_Jetson()
+
+if BATTERY_FLAG:
+    # battery status (hold the last known battery level)
+    bat_bus = smbus.SMBus(1)
+
 prev_b_data = ""
-
 
 
 # osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
@@ -133,9 +147,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     # Debug: Set info_tuple default value so if l_obj is None it will be defined when debug is displaying info_tuple name.
     #info_tuple = (0,0,0)
 
-   
-
-    
     l_frame = batch_meta.frame_meta_list
     while l_frame is not None:
 
@@ -264,21 +275,23 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         c_data  = EncodeDistanceData(c_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
         r_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
 
-        # Battery functions 
-        battery_cap = readCapacity(bat_bus)
-        b_data = ""
-        
-        if b_data != prev_b_data:
-            if battery_cap > 75:
-                b_data = "3"
-            elif battery_cap > 50:
-                b_data = "2"
-            elif battery_cap > 25:
-                b_data = "1"
-            else:
-                b_data = "0"
 
-            prev_b_data = b_data
+        if BATTERY_FLAG:
+            # Battery functions 
+            battery_cap = readCapacity(bat_bus)
+            b_data = ""
+            
+            if b_data != prev_b_data:
+                if battery_cap > 75:
+                    b_data = "3"
+                elif battery_cap > 50:
+                    b_data = "2"
+                elif battery_cap > 25:
+                    b_data = "1"
+                else:
+                    b_data = "0"
+
+                prev_b_data = b_data
 
         # Is the status LED for the battery?
         # if so then update the information scheme as needed
@@ -289,18 +302,20 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         r_data=3
         print(obj_meta.object_id)
 
-        # Overwrite left or right detection data sent from Jetson to Arduino Micro
-        # Cyclist's left side [object is passing close left (cyclist rear POV)]
-        if history_dict[obj_meta.object_id]['brv'][0] >= (1280 - 128) and history_dict[obj_meta.object_id]['delta_h'] > 0:
-            uart_transmission.send("1" + c_data + r_data + o_data)
 
-        # Cyclist's right side [object is passing close right (cyclist rear POV)]
-        elif history_dict[obj_meta.object_id]['tlv'][0] <= 128 and history_dict[obj_meta.object_id]['delta_h'] > 0:
-            uart_transmission.send(l_data + c_data + "1" + o_data)
+        if SERIAL_FLAG:
+            # Overwrite left or right detection data sent from Jetson to Arduino Micro
+            # Cyclist's left side [object is passing close left (cyclist rear POV)]
+            if history_dict[obj_meta.object_id]['brv'][0] >= (1280 - 128) and history_dict[obj_meta.object_id]['delta_h'] > 0:
+                uart_transmission.send("1" + c_data + r_data + o_data)
 
-        else:
-            # object is not passing
-            uart_transmission.send(l_data + c_data + r_data + o_data)
+            # Cyclist's right side [object is passing close right (cyclist rear POV)]
+            elif history_dict[obj_meta.object_id]['tlv'][0] <= 128 and history_dict[obj_meta.object_id]['delta_h'] > 0:
+                uart_transmission.send(l_data + c_data + "1" + o_data)
+
+            else:
+                # object is not passing
+                uart_transmission.send(l_data + c_data + r_data + o_data)
 
         # Debug Print of Left Center and Right Coeff
         #print(l_coeff,c_coeff, r_coeff)

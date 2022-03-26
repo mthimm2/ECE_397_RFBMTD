@@ -234,91 +234,92 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 if value['delta_w'] < 0:
                     history_dict.pop(key)
 
-        # Determine closes object in each frame
-        l_max_width = max([info_t[0] for info_t in left_det])   if len(left_det)    > 0 else 0
-        r_max_width = max([info_t[0] for info_t in right_det])  if len(right_det)   > 0 else 0
-        c_max_width = max([info_t[0] for info_t in center_det]) if len(center_det)  > 0 else 0
+        if obj_meta is not None:
 
-        '''
-            Do we need to have any special considerations for objects not in the center segment?
-            Is this where we make use of the distance coefficient to help compensate for the fish-eyeing?
-        '''
-        # Ratio of bounding box width to width of the frame
-        # Serves as a rudimentary form of how close an object is
-        # l_coeff = l_max_width / STANDARD_FRAME_WIDTH
-        # r_coeff = r_max_width / STANDARD_FRAME_WIDTH
-        # c_coeff = c_max_width / STANDARD_FRAME_WIDTH
+            # Determine closes object in each frame
+            l_max_width = max([info_t[0] for info_t in left_det])   if len(left_det)    > 0 else 0
+            r_max_width = max([info_t[0] for info_t in right_det])  if len(right_det)   > 0 else 0
+            c_max_width = max([info_t[0] for info_t in center_det]) if len(center_det)  > 0 else 0
 
-        # Dubug width list for data recording. 
-        # width_list = [l_max_width,c_max_width,r_max_width]
-        # 
-        # Eric: for testing get the bounding box coeff for the given region
-        # coeff = [l_coeff, c_coeff,r_coeff]
-        # location_list = ['Left','Center','Right']
-        # max_coeff = max(coeff)
-        # max_index = coeff.index(max_coeff)
-        # location=location_list[max_index]     
+            '''
+                Do we need to have any special considerations for objects not in the center segment?
+                Is this where we make use of the distance coefficient to help compensate for the fish-eyeing?
+            '''
+            # Ratio of bounding box width to width of the frame
+            # Serves as a rudimentary form of how close an object is
+            # l_coeff = l_max_width / STANDARD_FRAME_WIDTH
+            # r_coeff = r_max_width / STANDARD_FRAME_WIDTH
+            # c_coeff = c_max_width / STANDARD_FRAME_WIDTH
 
-        # Distance estimation function:
-        # distance = c_coeff*var 
+            # Dubug width list for data recording. 
+            # width_list = [l_max_width,c_max_width,r_max_width]
+            # 
+            # Eric: for testing get the bounding box coeff for the given region
+            # coeff = [l_coeff, c_coeff,r_coeff]
+            # location_list = ['Left','Center','Right']
+            # max_coeff = max(coeff)
+            # max_index = coeff.index(max_coeff)
+            # location=location_list[max_index]     
 
-        '''
-        FDU Code:
-            L | C | R | S | B | Other Function
-            0 | 1 | 2 | 3 | 4 |
-            L, C, R  => 0, 1, 2, 3     [0=off, 1=close, 2=med, 3=far]
-            S => 0, 1                  [0=off, 1=on]
-            B => 0, 1, 2, 3, 4         [0=off, 1 : < 25, 2 : >25,  3 : >50, 4 : >75]
-            Other Functions => TBD
-        '''
+            # Distance estimation function:
+            # distance = c_coeff*var 
 
-        l_data  = EncodeDistanceData(l_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
-        c_data  = EncodeDistanceData(c_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
-        r_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
+            '''
+            FDU Code:
+                L | C | R | S | B | Other Function
+                0 | 1 | 2 | 3 | 4 |
+                L, C, R  => 0, 1, 2, 3     [0=off, 1=close, 2=med, 3=far]
+                S => 0, 1                  [0=off, 1=on]
+                B => 0, 1, 2, 3, 4         [0=off, 1 : < 25, 2 : >25,  3 : >50, 4 : >75]
+                Other Functions => TBD
+            '''
 
-
-        if BATTERY_FLAG:
-            # Battery functions 
-            battery_cap = readCapacity(bat_bus)
-            battery_data = ""
-            
-            if battery_data != previous_battery_data:
-                if battery_cap > 75:
-                    battery_data = "3"
-                elif battery_cap > 50:
-                    battery_data = "2"
-                elif battery_cap > 25:
-                    battery_data = "1"
-                else:
-                    battery_data = "0"
-
-                previous_battery_data = battery_data
-
-        # Is the status LED for the battery?
-        # if so then update the information scheme as needed
-        if BATTERY_FLAG:
-            o_data = f"0{battery_data}"   # status (0-1), battery (0-3)
-        else:
-            o_data = 0
-
-        l_data=1
-        c_data=2
-        r_data=3
+            l_data  = EncodeDistanceData(l_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
+            c_data  = EncodeDistanceData(c_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
+            r_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
 
 
-        if SERIAL_FLAG:
-            # Overwrite left or right detection data sent from Jetson to Arduino Micro
-            # Cyclist's left side [object is passing close left (cyclist rear POV)]
-            if history_dict[obj_meta.object_id]['brv'][0] >= (1280 - 128) and history_dict[obj_meta.object_id]['delta_h'] > 0:
-                uart_transmission.send("1" + c_data + r_data + o_data)
+            if BATTERY_FLAG:
+                # Battery functions 
+                battery_cap = readCapacity(bat_bus)
+                battery_data = ""
+                
+                if battery_data != previous_battery_data:
+                    if battery_cap > 75:
+                        battery_data = "3"
+                    elif battery_cap > 50:
+                        battery_data = "2"
+                    elif battery_cap > 25:
+                        battery_data = "1"
+                    else:
+                        battery_data = "0"
 
-            # Cyclist's right side [object is passing close right (cyclist rear POV)]
-            elif history_dict[obj_meta.object_id]['tlv'][0] <= 128 and history_dict[obj_meta.object_id]['delta_h'] > 0:
-                uart_transmission.send(l_data + c_data + "1" + o_data)
+                    previous_battery_data = battery_data
 
+            # Is the status LED for the battery?
+            # if so then update the information scheme as needed
+            if BATTERY_FLAG:
+                o_data = f"0{battery_data}"   # status (0-1), battery (0-3)
             else:
-                # object is not passing
-                uart_transmission.send(l_data + c_data + r_data + o_data)
+                o_data = 0
+
+            l_data=1
+            c_data=2
+            r_data=3
+
+            if SERIAL_FLAG:
+                # Overwrite left or right detection data sent from Jetson to Arduino Micro
+                # Cyclist's left side [object is passing close left (cyclist rear POV)]
+                if history_dict[obj_meta.object_id]['brv'][0] >= (1280 - 128) and history_dict[obj_meta.object_id]['delta_h'] > 0:
+                    uart_transmission.send("1" + c_data + r_data + o_data)
+
+                # Cyclist's right side [object is passing close right (cyclist rear POV)]
+                elif history_dict[obj_meta.object_id]['tlv'][0] <= 128 and history_dict[obj_meta.object_id]['delta_h'] > 0:
+                    uart_transmission.send(l_data + c_data + "1" + o_data)
+
+                else:
+                    # object is not passing
+                    uart_transmission.send(l_data + c_data + r_data + o_data)
 
         # Debug Print of Left Center and Right Coeff
         #print(l_coeff,c_coeff, r_coeff)

@@ -146,6 +146,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     
     # Debug: Set info_tuple default value so if l_obj is None it will be defined when debug is displaying info_tuple name.
     #info_tuple = (0,0,0)
+    # obj_meta = None
 
     l_frame = batch_meta.frame_meta_list
     while l_frame is not None:
@@ -162,7 +163,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # Get list of the objects in frames' metadata
         l_obj=frame_meta.obj_meta_list
 
-        obj_meta = None
+        
         while l_obj is not None:
             try:
                 # Casting l_obj.data to pyds.NvDsObjectMeta

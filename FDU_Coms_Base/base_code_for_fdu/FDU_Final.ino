@@ -173,7 +173,7 @@ void controlCheck() {
   PORTD |= 0x10;
   delay(1000); // delay for 1 sec
   // digitalWrite(redR, HIGH);
-  PORTB |= 0x20;
+  PORTC |= 0x08;
   delay(1000); // delay for 1 sec
   // digitalWrite(yelR, HIGH);
   PORTC |= 0x20;
@@ -340,10 +340,10 @@ void ledCntl()
     // digitalWrite(redR, LOW);
     // digitalWrite(yelR, LOW);
     // digitalWrite(grnR, LOW);
-    // PORTB |= 0x20;
+    // PORTB |= 0x08;
     // PORTC |= 0x20;
     // PORTC |= 0x04;
-    PORTB &= 0xDF;
+    PORTB &= 0xF7;
     PORTC &= 0xDB;
   }
 
@@ -353,7 +353,7 @@ void ledCntl()
     // digitalWrite(redR, HIGH);
     // digitalWrite(yelR, LOW);
     // digitalWrite(grnR, LOW);
-    PORTB |= 0x20;
+    PORTB |= 0x08;
     PORTC &= 0xDB;
   }
 
@@ -363,7 +363,7 @@ void ledCntl()
     // digitalWrite(redR, LOW);
     // digitalWrite(yelR, HIGH);
     // digitalWrite(grnR, LOW);
-    PORTB &= 0xDF;
+    PORTB &= 0xF7;
     PORTC |= 0x20;
     PORTC &= 0xFB;
   }
@@ -374,7 +374,7 @@ void ledCntl()
     // digitalWrite(redR, LOW);
     // digitalWrite(yelR, LOW);
     // digitalWrite(grnR, HIGH); 
-    PORTB &= 0xDF;
+    PORTB &= 0xF7;
     PORTC &= 0xDF;
     PORTC |= 0x04;   
   }

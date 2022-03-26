@@ -307,7 +307,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             l_data=1
             c_data=2
             r_data=3
-
+            
             if SERIAL_FLAG:
                 # Overwrite left or right detection data sent from Jetson to Arduino Micro
                 # Cyclist's left side [object is passing close left (cyclist rear POV)]
@@ -321,6 +321,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 else:
                     # object is not passing
                     uart_transmission.send(l_data + c_data + r_data + o_data)
+
 
         # Debug Print of Left Center and Right Coeff
         #print(l_coeff,c_coeff, r_coeff)

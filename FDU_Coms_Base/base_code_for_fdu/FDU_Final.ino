@@ -13,7 +13,7 @@
 // #define yelM 7
 // #define yelL 8
 // #define sts 9
-// #define bat 10
+#define bat 10
 // #define grnM 14
 // #define grnL 15
 // #define grnR 16
@@ -24,6 +24,7 @@
 // Intializing an array that receives chars 
 const byte numChars = 32;
 char receivedChars[numChars];
+static bool batteryLightPulseFlag = false;
 
 boolean newData = false;
 
@@ -64,6 +65,39 @@ void loop() {
 
     // Wait for serial input
     // Delete when ready
+    
+    // Starting value
+    static float in = 4.712;
+
+    // Blink speedup factor
+    static float speedFactor = 1.0;
+
+    // Only pulse the battery light if we're low on battery
+    if(batteryLightPulseFlag) {
+
+      // Output value
+      float out;
+
+      // Increment the in value
+      in += 0.001;
+      
+      // Reset to start if we go over the bounds
+      if(in > 10.995) {
+        in = 4.712;
+      }
+
+      // Assign out
+      out = sin(in * speedFactor) * 127.5 + 127.5;
+      
+      // Write that value out to the battery light pin
+      analogWrite(bat, out);
+    } else {
+
+      // If our flag isn't set, we keep the battery LED off.
+      PORTB &= 0xFB;
+
+    }
+
     while(Serial.available() == 0) {
     }
 
@@ -168,37 +202,37 @@ void controlCheck() {
   // Turn on LEDs
   // digitalWrite(redL, HIGH);
   PORTC |= 0x10;
-  delay(1000); // delay for 1 sec
+  delay(200); // delay for 1 sec
   // digitalWrite(redM, HIGH);
   PORTD |= 0x10;
-  delay(1000); // delay for 1 sec
+  delay(200); // delay for 1 sec
   // digitalWrite(redR, HIGH);
   PORTC |= 0x08;
-  delay(1000); // delay for 1 sec
+  delay(200); // delay for 1 sec
   // digitalWrite(yelR, HIGH);
   PORTC |= 0x20;
-  delay(1000); // delay for 1 sec
+  delay(200); // delay for 1 sec
   // digitalWrite(yelM, HIGH);
   PORTD |= 0x80;
-  delay(1000); // delay for 1 sec
+  delay(200); // delay for 1 sec
   // digitalWrite(yelL, HIGH);
   PORTB |= 0x01;
-  delay(1000); // delay for 1 sec
+  delay(200); // delay for 1 sec
   // digitalWrite(grnL, HIGH);
   PORTC |= 0x02;
-  delay(1000); // delay for 1 sec
+  delay(200); // delay for 1 sec
   // digitalWrite(grnM, HIGH);
   PORTC |= 0x01;
-  delay(1000); // delay for 1 sec
+  delay(200); // delay for 1 sec
   // digitalWrite(grnR, HIGH);
   PORTC |= 0x04;
-  delay(1000); // delay for 1 sec
+  delay(200); // delay for 1 sec
   // digitalWrite(bat,  HIGH);
   PORTB |= 0x04;
-  delay(1000); // delay for 1 sec
+  delay(200); // delay for 1 sec
   // digitalWrite(sts,  HIGH);
   PORTB |= 0x02;
-  delay(1000); // delay for 1 sec
+  delay(2 00); // delay for 1 sec
 
   allOff();
 }
@@ -397,6 +431,7 @@ void ledCntl()
   if(receivedChars[4] == '4') 
   {
     Serial.print("[bat >75%] ");
+    batteryLightPulseFlag = false;
     // blink_num_times(4, bat);
 
   } 
@@ -404,20 +439,23 @@ void ledCntl()
   else if (receivedChars[4] == '3') 
   {
     Serial.print("[bat >50%] ");
+    batteryLightPulseFlag = false;
     // blink_num_times(3, bat);
 
   } 
   
   else if (receivedChars[4] == '2') 
   {
-    Serial.print("[bat >25%] ");
+    Serial.print("[bat >30%] ");
+    batteryLightPulseFlag = false;
     // blink_num_times(2, bat);
 
   } 
   
   else if (receivedChars[4] == '1')
   {
-    Serial.print("[bat <25%] ");
+    Serial.print("[bat <= 30%] ");
+    batteryLightPulseFlag = true;
     // blink_num_times(1, bat);
   }  
 

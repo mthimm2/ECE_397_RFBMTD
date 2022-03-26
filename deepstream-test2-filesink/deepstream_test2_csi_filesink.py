@@ -196,7 +196,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             #print(info_tuple)
            
             # Initialize the object and insert it into the dictionary if not already provided : 0 is for car and 2 is for person
-            if obj_meta.object_id not in history_dict and obj_meta.class_id is 2:
+            if obj_meta.object_id not in history_dict and obj_meta.class_id is 2: # TODO change 2 back to 0 to inference cars.
                 history_dict[obj_meta.object_id] = {}
                 history_dict[obj_meta.object_id]['delta_w'] = 0
                 history_dict[obj_meta.object_id]['delta_h'] = 0
@@ -215,7 +215,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 history_dict[obj_meta.object_id]['tlv'] = obj_tlv
                 history_dict[obj_meta.object_id]['brv'] = obj_brv
 
-            # If an object is determined to be approaching us, we allow it to be placed into the 
+            # If an object is determined to be approaching us, we allow it to be placed into the...
             # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame            
             if history_dict[info_tuple[3]]['delta_w'] >= 0:
                 if obj_center_coords[0] < RIGHT[1]:
@@ -282,8 +282,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             r_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
             o_data  = "00"
 
-            if battery_connected
-        :
+            if battery_connected:
                 # Battery functions 
                 battery_cap = readCapacity(bat_bus)
                 battery_data = ""
@@ -302,8 +301,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             # Is the status LED for the battery?
             # if so then update the information scheme as needed
-            if battery_connected
-        :
+            if battery_connected:
                 o_data = f"0{battery_data}"   # status (0-1), battery (0-3)
             else:
                 o_data = '00'
@@ -313,8 +311,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # r_data=3
 
             # Send Serial Data
-            if serial_connected
-        :
+            if serial_connected:
                 # Passing Case for the right or left. 
 
                 # Overwrite left or right detection data sent from Jetson to Arduino Micro
@@ -394,12 +391,83 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     return Gst.PadProbeReturn.OK	
 
 
+def cb_newpad(decodebin, decoder_src_pad,data):
+    print("In cb_newpad\n")
+    caps=decoder_src_pad.get_current_caps()
+    gststruct=caps.get_structure(0)
+    gstname=gststruct.get_name()
+    source_bin=data
+    features=caps.get_features(0)
+
+    # Need to check if the pad created by the decodebin is for video and not
+    # audio.
+    print("gstname=",gstname)
+    if(gstname.find("video")!=-1):
+        # Link the decodebin pad only if decodebin has picked nvidia
+        # decoder plugin nvdec_*. We do this by checking if the pad caps contain
+        # NVMM memory features.
+        print("features=",features)
+        if features.contains("memory:NVMM"):
+            # Get the source bin ghost pad
+            bin_ghost_pad=source_bin.get_static_pad("src")
+            if not bin_ghost_pad.set_target(decoder_src_pad):
+                sys.stderr.write("Failed to link decoder src pad to source bin ghost pad\n")
+        else:
+            sys.stderr.write(" Error: Decodebin did not pick nvidia decoder plugin.\n")
+
+def decodebin_child_added(child_proxy,Object,name,user_data):
+    print("Decodebin child added:", name, "\n")
+    if(name.find("decodebin") != -1):
+        Object.connect("child-added",decodebin_child_added,user_data)
+
+    if "source" in name:
+        Object.set_property("drop-on-latency", True)
+
+
+def create_source_bin(index,uri):
+    print("Creating source bin")
+
+    # Create a source GstBin to abstract this bin's content from the rest of the
+    # pipeline
+    bin_name="source-bin-0"
+    print(bin_name)
+    nbin=Gst.Bin.new(bin_name)
+    if not nbin:
+        sys.stderr.write(" Unable to create source bin \n")
+
+    # Source element for reading from the uri.
+    # We will use decodebin and let it figure out the container format of the
+    # stream and the codec and plug the appropriate demux and decode plugins.
+    uri_decode_bin=Gst.ElementFactory.make("uridecodebin", "uri-decode-bin")
+    if not uri_decode_bin:
+        sys.stderr.write(" Unable to create uri decode bin \n")
+    # We set the input uri to the source element
+    uri_decode_bin.set_property("uri",uri)
+    # Connect to the "pad-added" signal of the decodebin which generates a
+    # callback once a new pad for raw data has beed created by the decodebin
+    uri_decode_bin.connect("pad-added",cb_newpad,nbin)
+    uri_decode_bin.connect("child-added",decodebin_child_added,nbin)
+
+    # We need to create a ghost pad for the source bin which will act as a proxy
+    # for the video decoder src pad. The ghost pad will not have a target right
+    # now. Once the decode bin creates the video decoder and generates the
+    # cb_newpad callback, we will set the ghost pad target to the video decoder
+    # src pad.
+    Gst.Bin.add(nbin,uri_decode_bin)
+    bin_pad=nbin.add_pad(Gst.GhostPad.new_no_target("src",Gst.PadDirection.SRC))
+    if not bin_pad:
+        sys.stderr.write(" Failed to add ghost pad in source bin \n")
+        return None
+    return nbin
+
+
 
 # TODO Add transfor to be queue for arch 64. 
 def main(args):
     global pipeline
     global bus
     global loop
+    global input_file 
 
     # Standard GStreamer initialization
     GObject.threads_init()
@@ -416,35 +484,81 @@ def main(args):
     # Enable Message forwarding so we can recieve filesinks EOS signal to avoid closing the pipeline before buffers flush and corrupting the mp4 file
     pipeline.set_property('message-forward', True)
 
+    # Create nvstreammux instance to form batches from one or more sources.
+    streammux = Gst.ElementFactory.make("nvstreammux", "Stream-muxer")
+    if not streammux:
+        sys.stderr.write(" Unable to create NvStreamMux \n")
+    pipeline.add(streammux)
 
     # TODO Implement File Input Inference
     # If input parameter is passed via an argument then use that as the input source and not the CSI camera.
-    if input_file != None:
-           # Source element for reading from the file
-        print("Playing file %s " % input_file)
-        source = Gst.ElementFactory.make("filesrc", "file-source")
-        if not source:
-            sys.stderr.write(" Unable to create file source \n")
-        source.set_property('location', input_file)
-        # Since the data format in the input file is elementary h264 stream,
-        # we need a h264parser
-        print("Creating H264Parser \n")
+    if input_file is not None:
         
-        h264parser_input = Gst.ElementFactory.make("h264parse", "h264-parser_input")
-        if not h264parser_input:
-            sys.stderr.write(" Unable to create h264 parser \n")
+        
+        i = 1 # Number of sources
+        print("Creating source_bin ",i," \n ")
+        uri_name = "file://" + input_file
+
+        if uri_name.find("rtsp://") == 0 :
+            is_live = True
+
+        source_bin=create_source_bin(i, uri_name)
+        
+        if not source_bin:
+            sys.stderr.write("Unable to create source bin \n")
+        
+        pipeline.add(source_bin)
+        padname="sink_0"
+        print("padname: ", padname)
+        
+        file_in_sinkpad= streammux.get_request_pad(padname) 
+        if not file_in_sinkpad:
+            sys.stderr.write("Unable to create sink pad bin \n")
+        
+        srcpad_bin=source_bin.get_static_pad("src")
+        if not srcpad_bin:
+            sys.stderr.write("Unable to create src pad bin \n")
+        
+        srcpad_bin.link(file_in_sinkpad)
+
+        # New structure -----------------
+
+
+        # # Source element for reading from the file
+        # print("Playing file %s " % input_file)
+        # source = Gst.ElementFactory.make("filesrc", "file-source")
+        # if not source:
+        #     sys.stderr.write(" Unable to create file source \n")
+        
+        # source.set_property('location', input_file)
+        # # Since the data format in the input file is elementary h264 stream,
+        # # we need a h264parser
         
 
-        # Create a caps filter for NVMM and resolution scaling
-        caps_decoder = Gst.ElementFactory.make("capsfilter", "filter")
-        caps_decoder.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM), format=I420"))
+        # # qtdemux = Gst.ElementFactory.make("qtdemux", "qtdemuxer_file_input")
+        # # if not qtdemux:
+        # #     sys.stderr.write(" Unable to create qtdemuxer \n")
+        # # qtdemux_src_pad = qtdemux.get_request_pad("video_0")
+        # # print("Creating H264Parser \n")
+
+        # # Changing input to Mpeg-4     
+        # input_file_parser = Gst.ElementFactory.make("h264parse", "parser_input")
+        # if not input_file_parser:
+        #     sys.stderr.write(" Unable to create h264 parser \n")
+        
+        
+        # # # Create a caps filter for NVMM and resolution scaling
+        # # caps_decoder = Gst.ElementFactory.make("capsfilter", "filter")
+        # # caps_decoder.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM), format=I420"))
 
 
-        # Use nvdec_h264 for hardware accelerated decode on GPU|   was nvv4l2decoder trying omxh264dec
-        print("Creating Decoder \n")
-        decoder = Gst.ElementFactory.make("omxh264dec", "nvv4l2-decoder")
-        if not decoder:
-            sys.stderr.write(" Unable to create Nvv4l2 Decoder \n")
+        # # Use nvdec_h264 for hardware accelerated decode on GPU|   was nvv4l2decoder trying omxh264dec , now trying avdec_mpeg4, now avdec_h264
+        # print("Creating Decoder \n")
+        # decoder = Gst.ElementFactory.make("avdec_h264", "input_file_decoder")
+        # if not decoder:
+        #     sys.stderr.write(" Unable to create input Decoder \n")
+
+        
     
     else:
         # Source element for csi camera 
@@ -454,20 +568,17 @@ def main(args):
             sys.stderr.write(" Unable to create Source \n")
         source.set_property('bufapi-version', True)
 
-    # Converter to scale the image
-    nvvidconv_src = Gst.ElementFactory.make("nvvideoconvert", "convertor_src")
-    if not nvvidconv_src:
-        sys.stderr.write(" Unable to create nvvidconv_src \n")
+        # Converter to scale the image
+        nvvidconv_src = Gst.ElementFactory.make("nvvideoconvert", "convertor_src")
+        if not nvvidconv_src:
+            sys.stderr.write(" Unable to create nvvidconv_src \n")
 
-    # Caps for NVMM and resolution scaling
-    caps_nvvidconv_src = Gst.ElementFactory.make("capsfilter", "nvmm_caps2")
-    if not caps_nvvidconv_src:
-        sys.stderr.write(" Unable to create capsfilter \n")
+        # Caps for NVMM and resolution scaling
+        caps_nvvidconv_src = Gst.ElementFactory.make("capsfilter", "nvmm_caps2")
+        if not caps_nvvidconv_src:
+            sys.stderr.write(" Unable to create capsfilter \n")
 
-    # Create nvstreammux instance to form batches from one or more sources.
-    streammux = Gst.ElementFactory.make("nvstreammux", "Stream-muxer")
-    if not streammux:
-        sys.stderr.write(" Unable to create NvStreamMux \n")
+    
 
     # Use nvinfer to run inferencing on decoder's output,
     # behaviour of inferencing is set through config file
@@ -576,17 +687,19 @@ def main(args):
 
 
     
-    caps_nvvidconv_src.set_property('caps', Gst.Caps.from_string('video/x-raw(memory:NVMM), width=1280, height=720'))
+   
     
-    # Define Streammux
+    # Define Streammux Properties
     streammux.set_property('width', 1280)
     streammux.set_property('height', 720)
     streammux.set_property('batch-size', 1)
     streammux.set_property('batched-push-timeout', 4000000)
     
-    if input_file == None:
+    if input_file is None:
         streammux.set_property('live-source',1) # Added for CSI
         sys.stderr.write(" Setting Streammux for live-source \n")
+        caps_nvvidconv_src.set_property('caps', Gst.Caps.from_string('video/x-raw(memory:NVMM), width=1280, height=720'))
+
 
     #Set properties of pgie
     pgie.set_property('config-file-path', PGIE_CONFIG_FILE)
@@ -624,16 +737,24 @@ def main(args):
 
     # Define the pipeline  TODO: Add statements for file input and no display.
     print("Adding elements to Pipeline \n")
-    pipeline.add(source)
+    # pipeline.add(source)
 
     if input_file != None:
-        pipeline.add(h264parser_input)
-        pipeline.add(decoder)
-        pipeline.add(caps_decoder)
+        # pipeline.add(decodebin)
+        # decodebin.connect("pad-added", self.decodebin_pad_added)
+        # pipeline.add(input_file_parser)
+        # pipeline.add(decoder)
+        # pipeline.add(caps_decoder)
+        # pipeline.add(qtdemux)
+        pass
 
-    pipeline.add(nvvidconv_src)
-    pipeline.add(caps_nvvidconv_src)
-    pipeline.add(streammux)
+    # CSI Camera Input 
+    else:
+        pipeline.add(source)
+        pipeline.add(nvvidconv_src)
+        pipeline.add(caps_nvvidconv_src)
+
+    # pipeline.add(streammux)
     pipeline.add(pgie)
     pipeline.add(tracker)
     pipeline.add(nvvidconv)
@@ -651,25 +772,40 @@ def main(args):
     pipeline.add(container)
     pipeline.add(filesink_mp4)
     
-    # we link the elements together
-    print("Linking elements in the Pipeline \n")
-    if input_file != None:
-        source.link(h264parser_input)
-        h264parser_input.link(decoder)
-        decoder.link(nvvidconv_src)
-    else:
-        source.link(nvvidconv_src)
-    nvvidconv_src.link(caps_nvvidconv_src)
-
     sinkpad_streammux = streammux.get_request_pad("sink_0")
     if not sinkpad_streammux:
         sys.stderr.write(" Unable to get the sink pad of streammux \n")
 
-    srcpad_caps_nvvidconv_src = caps_nvvidconv_src.get_static_pad("src")
-    if not srcpad_caps_nvvidconv_src:
-        sys.stderr.write(" Unable to get source pad of source \n")
+    # we link the elements together
+    print("Linking elements in the Pipeline \n")
+    
+    # Input File Linking -------------------------------------------------------------
+    # if input_file != None:
+    #     print("Linking File Input Pipeline")
+    #     source.link(input_file_parser)
+    #     # qtdemux.link(input_file_parser)
 
-    srcpad_caps_nvvidconv_src.link(sinkpad_streammux) # Linking the nv vidconverter src pad to the streammux sink pad.
+    #     input_file_parser.link(decoder)
+
+    #     decoder_src_pad = decoder.get_static_pad("src")
+
+    #     if not decoder_src_pad:
+    #         sys.stderr.write(" Unable to get the decoder src pad \n")
+
+    #     decoder_src_pad.link(sinkpad_streammux)
+
+    if input_file == None:
+        print("Linking Camera Input Pipeline")
+        source.link(nvvidconv_src)
+        nvvidconv_src.link(caps_nvvidconv_src)
+
+        srcpad_caps_nvvidconv_src = caps_nvvidconv_src.get_static_pad("src")
+        if not srcpad_caps_nvvidconv_src:
+            sys.stderr.write(" Unable to get source pad of source \n")
+
+        # Linking the nv vidconverter src pad to the streammux sink pad.
+        srcpad_caps_nvvidconv_src.link(sinkpad_streammux) 
+
     streammux.link(pgie)
     pgie.link(tracker)
     tracker.link(nvvidconv)
@@ -773,8 +909,7 @@ def main(args):
     
     # cleanup Pipeline and Serial Port
     pipeline.set_state(Gst.State.NULL)
-    if serial_connected
-:
+    if serial_connected:
         uart_transmission.serial_cleanup()
 
 
@@ -786,16 +921,29 @@ def parse_args():
     parser = OptionParser()
     parser.add_option("-i", "--input-file", dest="input_file",default=None,
                       help="Set the input H264 file, Default=None -> CSI Camera", metavar="FILE")
+    
     parser.add_option("", "--no-display", action="store_true",
                       dest="no_display", default=False,
                       help="Disable display")
+    
+    # parser.add_option("", "--batt-con", action="store_false",
+    #                   dest="battery_connected", default=False,
+    #                   help="")
 
+    # parser.add_option("", "--no-display", action="store_true",
+    #                   dest="no_display", default=False,
+    #                   help="Disable display")
     (options, args) = parser.parse_args()
 
 
     global input_file
     global no_display
+    global battery_connected
+    global serial_connected
+
     input_file = options.input_file
+    
+    print(input_file)
     no_display = options.no_display
 
    

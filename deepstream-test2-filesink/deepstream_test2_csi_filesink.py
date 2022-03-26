@@ -235,7 +235,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         l_data  = '0'
         c_data  = '0'
         r_data  = '0'
-        o_data  = '0'
+        o_data  = '00'
 
         if obj_meta is not None:
 

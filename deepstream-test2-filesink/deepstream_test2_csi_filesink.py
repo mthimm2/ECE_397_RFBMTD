@@ -146,7 +146,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     
     # Debug: Set info_tuple default value so if l_obj is None it will be defined when debug is displaying info_tuple name.
     #info_tuple = (0,0,0)
-    # obj_meta = None
+    obj_meta = None
 
     l_frame = batch_meta.frame_meta_list
     while l_frame is not None:
@@ -169,7 +169,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 # Casting l_obj.data to pyds.NvDsObjectMeta
                 #obj_meta=pyds.glist_get_nvds_object_meta(l_obj.data)
                 obj_meta=pyds.NvDsObjectMeta.cast(l_obj.data)
-               
+
 
             except StopIteration:
                 break
@@ -353,7 +353,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # allocated string. Use pyds.get_string() to get the string content.
 
         # Change width to distance after calibration
-        py_nvosd_text_params.display_text = "Class= {} | Id= {} | Location= {} | bBox_Width= {} | Coeff={} ".format(class_id_names[class_id_index],info_tuple[2],location,width_list[max_index], coeff[max_index])
+        py_nvosd_text_params.display_text = "")
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10

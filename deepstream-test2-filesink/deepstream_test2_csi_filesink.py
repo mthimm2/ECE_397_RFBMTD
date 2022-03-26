@@ -146,8 +146,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     
     # Debug: Set info_tuple default value so if l_obj is None it will be defined when debug is displaying info_tuple name.
     #info_tuple = (0,0,0)
-    obj_meta = None
-    
+    # obj_meta = None
+
     l_frame = batch_meta.frame_meta_list
     while l_frame is not None:
 

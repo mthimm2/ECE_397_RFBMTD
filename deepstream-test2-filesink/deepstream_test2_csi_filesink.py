@@ -304,7 +304,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         l_data=1
         c_data=2
         r_data=3
-        print(obj_meta.object_id)
 
 
         if SERIAL_FLAG:

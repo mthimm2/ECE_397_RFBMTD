@@ -302,7 +302,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             if BATTERY_FLAG:
                 o_data = f"0{battery_data}"   # status (0-1), battery (0-3)
             else:
-                o_data = 0
+                o_data = "00"
 
             # l_data=1
             # c_data=2

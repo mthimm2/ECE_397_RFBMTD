@@ -222,7 +222,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             # If an object is determined to be approaching us, we allow it to be placed into the 
             # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame            
-            if history_dict[info_tuple[2]]['delta_w'] >= 0:
+            if history_dict[info_tuple[3]]['delta_w'] >= 0:
                 if obj_center_coords[0] < RIGHT[1]:
                     right_det.append(info_tuple)
                 elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
@@ -287,13 +287,13 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 
                 if battery_data != previous_battery_data:
                     if battery_cap > 75:
-                        battery_data = "3"
+                        battery_data = "4"
                     elif battery_cap > 50:
-                        battery_data = "2"
+                        battery_data = "3"
                     elif battery_cap > 25:
-                        battery_data = "1"
+                        battery_data = "2"
                     else:
-                        battery_data = "0"
+                        battery_data = "1"
 
                     previous_battery_data = battery_data
 

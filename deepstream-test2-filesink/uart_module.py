@@ -5,7 +5,7 @@ class UART_Jetson():
 
     def __init__(self):
         # https://pyserial.readthedocs.io/en/latest/pyserial_api.html?highlight=byte_size#serial.Serial.inter_byte_timeout
-        serial_port = serial.Serial(
+        self.serial_port = serial.Serial(
             port="/dev/ttyUSB0",
             baudrate=9600,
             bytesize=serial.EIGHTBITS,      # FIVEBITS, SIXBITS, SEVENBITS, EIGHTBITS
@@ -17,14 +17,14 @@ class UART_Jetson():
         # Wait a second to let the port initialize
         time.sleep(1)
 
-        serial_port.write("<Init>".encode())
+        self.serial_port.write("<Init>".encode())
 
     def send(self, data):
         # Send data 
-        serial_port.write(f"<{data}>".encode())
+        self.serial_port.write(f"<{data}>".encode())
 
     def serial_cleanup(self):
-        serial_port.close()
+        self.serial_port.close()
     
     # def read(self):
         # serial_port.

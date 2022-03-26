@@ -296,7 +296,10 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
         # Is the status LED for the battery?
         # if so then update the information scheme as needed
-        o_data   = f"0{battery_data}"   # status (0-1), battery (0-3)
+        if BATTERY_FLAG:
+            o_data = f"0{battery_data}"   # status (0-1), battery (0-3)
+        else:
+            o_data = 0
 
         l_data=1
         c_data=2

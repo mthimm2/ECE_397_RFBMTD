@@ -23,7 +23,7 @@ class UART_Jetson():
         # Send data 
         serial_port.write(f"<{data}>".encode())
 
-    def serial_cleanup():
+    def serial_cleanup(self):
         serial_port.close()
     
     # def read(self):

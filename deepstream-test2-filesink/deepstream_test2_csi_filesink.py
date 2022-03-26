@@ -287,13 +287,13 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 
                 if battery_data != previous_battery_data:
                     if battery_cap > 75:
-                        battery_data = "3"
+                        battery_data = "4"
                     elif battery_cap > 50:
-                        battery_data = "2"
+                        battery_data = "3"
                     elif battery_cap > 25:
-                        battery_data = "1"
+                        battery_data = "2"
                     else:
-                        battery_data = "0"
+                        battery_data = "1"
 
                     previous_battery_data = battery_data
 

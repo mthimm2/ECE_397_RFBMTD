@@ -117,7 +117,7 @@ if BATTERY_FLAG:
     # battery status (hold the last known battery level)
     bat_bus = smbus.SMBus(1)
 
-prev_b_data = ""
+previous_battery_data = ""
 
 
 # osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
@@ -279,23 +279,23 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         if BATTERY_FLAG:
             # Battery functions 
             battery_cap = readCapacity(bat_bus)
-            b_data = ""
+            battery_data = ""
             
-            if b_data != prev_b_data:
+            if battery_data != previous_battery_data:
                 if battery_cap > 75:
-                    b_data = "3"
+                    battery_data = "3"
                 elif battery_cap > 50:
-                    b_data = "2"
+                    battery_data = "2"
                 elif battery_cap > 25:
-                    b_data = "1"
+                    battery_data = "1"
                 else:
-                    b_data = "0"
+                    battery_data = "0"
 
-                prev_b_data = b_data
+                previous_battery_data = battery_data
 
         # Is the status LED for the battery?
         # if so then update the information scheme as needed
-        o_data   = f"0{b_data}"   # status (0-1), battery (0-3)
+        o_data   = f"0{battery_data}"   # status (0-1), battery (0-3)
 
         l_data=1
         c_data=2
@@ -755,7 +755,8 @@ def main(args):
     
     # cleanup Pipeline and Serial Port
     pipeline.set_state(Gst.State.NULL)
-    uart_transmission.serial_cleanup()
+    if SERIAL_FLAG:
+        uart_transmission.serial_cleanup()
 
 
 

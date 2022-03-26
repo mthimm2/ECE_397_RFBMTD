@@ -308,6 +308,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # c_data=2
             # r_data=3
 
+            # Send Serial Data
             if SERIAL_FLAG:
                 # Passing Case for the right or left. 
 

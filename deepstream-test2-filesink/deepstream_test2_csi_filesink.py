@@ -256,11 +256,11 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # width_list = [l_max_width,c_max_width,r_max_width]
             # 
             # Eric: for testing get the bounding box coeff for the given region
-            # coeff = [l_coeff, c_coeff,r_coeff]
-            # location_list = ['Left','Center','Right']
-            # max_coeff = max(coeff)
-            # max_index = coeff.index(max_coeff)
-            # location=location_list[max_index]     
+            coeff = [l_coeff, c_coeff,r_coeff]
+            location_list = ['Left','Center','Right']
+            max_coeff = max(coeff)
+            max_index = coeff.index(max_coeff)
+            location=location_list[max_index]     
 
             # Distance estimation function:
             # distance = c_coeff*var 
@@ -307,7 +307,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             l_data=1
             c_data=2
             r_data=3
-            
+
             if SERIAL_FLAG:
                 # Overwrite left or right detection data sent from Jetson to Arduino Micro
                 # Cyclist's left side [object is passing close left (cyclist rear POV)]

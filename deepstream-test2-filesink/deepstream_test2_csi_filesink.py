@@ -114,6 +114,8 @@ if battery_connected:
 
 previous_battery_data = ""
 
+# For Displaying of edge_case on Video OSD Print. 
+edge_case = None
 
 # osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
 # and update params for drawing rectangle, object information etc.
@@ -191,17 +193,13 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             obj_center_coords = ((obj_tlv[0] + obj_brv[0]) / 2, (obj_tlv[1] + obj_brv[1]) / 2)
 
             # For the purpose of object distance calculation and position, we care mostly about bb width and bb center location
-            object_info = (obj_bb_coords.width, obj_center_coords, obj_bb_area, obj_meta.object_id)
+            info_tuple = (obj_bb_coords.width, obj_center_coords, obj_bb_area, obj_meta.object_id)
             
-            
-            
-            # Object detection class id | 0 is for car and 2 is for person
-            detection_class_id = 2
-
-            
+            #print(info_tuple)
+           
             # Initialize the object and insert it into the dictionary if not already provided : 0 is for car and 2 is for person
-            if obj_meta.object_id not in history_dict and obj_meta.class_id is detection_class_id: # TODO change 2 back to 0 to inference cars.
-                # history_dict[obj_meta.object_id] = {}
+            if obj_meta.object_id not in history_dict and obj_meta.class_id is 2: # TODO change 2 back to 0 to inference cars.
+                history_dict[obj_meta.object_id] = {}
                 history_dict[obj_meta.object_id]['delta_w'] = 0
                 history_dict[obj_meta.object_id]['delta_h'] = 0
                 history_dict[obj_meta.object_id]['direction'] = None
@@ -210,7 +208,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 history_dict[obj_meta.object_id]['tlv'] = obj_tlv
                 history_dict[obj_meta.object_id]['brv'] = obj_brv
                 
-            elif obj_meta.class_id is detection_class_id:
+            elif obj_meta.class_id is 0:
                 history_dict[obj_meta.object_id]['delta_w'] = history_dict[obj_meta.object_id]['width'] - obj_bb_coords.width
                 history_dict[obj_meta.object_id]['delta_h'] = history_dict[obj_meta.object_id]['height'] - obj_bb_coords.height
                 history_dict[obj_meta.object_id]['direction'] = 'left' if obj_tlv[0] > history_dict[obj_meta.object_id]['tlv'][0] else 'right' if obj_tlv[0] != history_dict[obj_meta.object_id]['tlv'][0] else None
@@ -222,10 +220,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # If an object is determined to be approaching us, we allow it to be placed into the...
             # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame          
             # FIXME URGENT, Key error 26, 3, 24, 9  
-            
-            print(info_tuple[3])
-
-            if history_dict[obj_meta.object_id]['delta_w'] >= 0:
+            if history_dict[info_tuple[3]]['delta_w'] >= 0:
                 if obj_center_coords[0] < RIGHT[1]:
                     right_det.append(info_tuple)
                 elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
@@ -338,8 +333,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                     # object is not passing
                     uart_transmission.send(l_data + c_data + r_data + o_data)
 
-            # else:
-            #     uart_transmission.send('0' + '0' + '0' + '00')
+            else:
+                uart_transmission.send('0' + '0' + '0' + '00')
 
         # Debug Print of Left Center and Right Coeff
         #print(l_coeff,c_coeff, r_coeff)

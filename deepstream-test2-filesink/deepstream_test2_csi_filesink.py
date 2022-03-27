@@ -139,7 +139,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
     global previous_battery_state
 
-    
+
     gst_buffer = info.get_buffer()
     if not gst_buffer:
         print("Unable to get GstBuffer ")
@@ -248,7 +248,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         l_data  = '0'
         c_data  = '0'
         r_data  = '0'
-        o_data  = '00'
+        battery_led  = '00'
 
         if obj_meta is not None:
 
@@ -269,7 +269,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             # Dubug width list for data recording. 
             # width_list = [l_max_width,c_max_width,r_max_width]
-            # 
+            
             # Eric: for testing get the bounding box coeff for the given region
             coeff = [l_max_width, c_max_width, r_max_width]
             location_list = ['Left','Center','Right']
@@ -281,6 +281,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # distance = c_coeff*var 
 
             '''
+            -- Needs Updating
             FDU Code:
                 L | C | R | S | B | Other Function
                 0 | 1 | 2 | 3 | 4 |
@@ -293,7 +294,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             l_data  = EncodeDistanceData(l_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
             c_data  = EncodeDistanceData(c_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
             r_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
-            o_data  = "00"
+            status_led = "0"
+            battery_led  = "0"
 
             if battery_connected:
                 # Battery functions 
@@ -315,9 +317,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # Is the status LED for the battery?
             # if so then update the information scheme as needed
             if battery_connected:
-                o_data = f"0{battery_state}"   # status (0-1), battery (0-3)
+                battery_led = f"0{battery_state}"   # status (0-1), battery (0-3)
             else:
-                o_data = '00'
+                battery_led = '00'
 
             # l_data=1
             # c_data=2
@@ -330,17 +332,17 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 # Overwrite left or right detection data sent from Jetson to Arduino Micro
                 # Cyclist's left side [object is passing close left (cyclist rear POV)]
                 if history_dict[obj_meta.object_id]['brv'][0] >= (1280 - 128) and history_dict[obj_meta.object_id]['delta_h'] > 0:
-                    uart_transmission.send("1" + c_data + r_data + o_data)
+                    uart_transmission.send("1" + c_data + r_data + battery_led)
                     location = 'Pass on Left'
 
                 # Cyclist's right side [object is passing close right (cyclist rear POV)]
                 elif history_dict[obj_meta.object_id]['tlv'][0] <= 128 and history_dict[obj_meta.object_id]['delta_h'] > 0:
-                    uart_transmission.send(l_data + c_data + "1" + o_data)
+                    uart_transmission.send(l_data + c_data + "1" + battery_led)
                     location = 'Pass on Right'
 
                 else:
                     # object is not passing
-                    uart_transmission.send(l_data + c_data + r_data + o_data)
+                    uart_transmission.send(l_data + c_data + r_data + battery_led)
 
         else:
             if serial_connected:
@@ -377,7 +379,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # allocated string. Use pyds.get_string() to get the string content.
 
         # Change width to distance after calibration
-        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {}".format(location,l_data+c_data+r_data+o_data)
+        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {}".format(location,l_data+c_data+r_data+battery_led)
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10

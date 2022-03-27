@@ -143,7 +143,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     #info_tuple = (0,0,0)
     
     obj_meta = None
-    
+
     l_frame = batch_meta.frame_meta_list
     while l_frame is not None:
 
@@ -221,11 +221,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 history_dict[obj_meta.object_id]['brv'] = obj_brv
 
             # If an object is determined to be approaching us, we allow it to be placed into the...
-            # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame          
-            # FIXME URGENT, Key error 26, 3, 24, 9  
-            
-            print(info_tuple[3])
-
+            # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame 
             if history_dict[obj_meta.object_id]['delta_w'] >= 0:
                 if obj_center_coords[0] < RIGHT[1]:
                     right_det.append(info_tuple)
@@ -328,12 +324,12 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 # Cyclist's left side [object is passing close left (cyclist rear POV)]
                 if history_dict[obj_meta.object_id]['brv'][0] >= (1280 - 128) and history_dict[obj_meta.object_id]['delta_h'] > 0:
                     uart_transmission.send("1" + c_data + r_data + o_data)
-                    edge_case = 'Pass on Left'
+                    # edge_case = 'Pass on Left'
 
                 # Cyclist's right side [object is passing close right (cyclist rear POV)]
                 elif history_dict[obj_meta.object_id]['tlv'][0] <= 128 and history_dict[obj_meta.object_id]['delta_h'] > 0:
                     uart_transmission.send(l_data + c_data + "1" + o_data)
-                    edge_case = 'Pass on Right'
+                    # edge_case = 'Pass on Right'
 
                 else:
                     # object is not passing
@@ -373,7 +369,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # allocated string. Use pyds.get_string() to get the string content.
 
         # Change width to distance after calibration
-        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {} | {}".format(location,l_data+c_data+r_data+o_data, edge_case)
+        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {} |".format(location,l_data+c_data+r_data+o_data)
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10

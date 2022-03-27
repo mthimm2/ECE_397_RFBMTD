@@ -80,7 +80,7 @@ g_eos_list = [False] * MAX_NUM_SOURCES
 # g_source_bin_list = [None] * MAX_NUM_SOURCES
 
 # History dictionary for the past LCR detections
-history_dict = {}
+lcr_history = {}
 
 # Constants for Location Determination
 # We know that each frame coming in has the same dimensions for 720p capture
@@ -138,7 +138,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     global loop
 
     global previous_battery_state
-    global history_dict
+    global lcr_history
 
     gst_buffer = info.get_buffer()
     if not gst_buffer:
@@ -208,29 +208,29 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             #print(info_tuple)
            
             # Initialize the object and insert it into the dictionary if not already provided : 0 is for car and 2 is for person
-            if obj_meta.object_id not in history_dict and obj_meta.class_id is 2: # TODO change 2 back to 0 to inference cars.
-                history_dict[obj_meta.object_id] = {}
-                history_dict[obj_meta.object_id]['delta_w'] = 0
-                history_dict[obj_meta.object_id]['delta_h'] = 0
-                history_dict[obj_meta.object_id]['direction'] = None
-                history_dict[obj_meta.object_id]['width'] = obj_bb_coords.width
-                history_dict[obj_meta.object_id]['height'] = obj_bb_coords.height
-                history_dict[obj_meta.object_id]['tlv'] = obj_tlv
-                history_dict[obj_meta.object_id]['brv'] = obj_brv
+            if obj_meta.object_id not in lcr_history and obj_meta.class_id is 2: # TODO change 2 back to 0 to inference cars.
+                lcr_history[obj_meta.object_id] = {}
+                lcr_history[obj_meta.object_id]['delta_w'] = 0
+                lcr_history[obj_meta.object_id]['delta_h'] = 0
+                lcr_history[obj_meta.object_id]['direction'] = None
+                lcr_history[obj_meta.object_id]['width'] = obj_bb_coords.width
+                lcr_history[obj_meta.object_id]['height'] = obj_bb_coords.height
+                lcr_history[obj_meta.object_id]['tlv'] = obj_tlv
+                lcr_history[obj_meta.object_id]['brv'] = obj_brv
                 
             elif obj_meta.object_id is 0:
-                history_dict[obj_meta.object_id]['delta_w'] = history_dict[obj_meta.object_id]['width'] - obj_bb_coords.width
-                history_dict[obj_meta.object_id]['delta_h'] = history_dict[obj_meta.object_id]['height'] - obj_bb_coords.height
-                history_dict[obj_meta.object_id]['direction'] = 'left' if obj_tlv[0] > history_dict[obj_meta.object_id]['tlv'][0] else 'right' if obj_tlv[0] != history_dict[obj_meta.object_id]['tlv'][0] else None
-                history_dict[obj_meta.object_id]['width'] = obj_bb_coords.width
-                history_dict[obj_meta.object_id]['height'] = obj_bb_coords.height
-                history_dict[obj_meta.object_id]['tlv'] = obj_tlv
-                history_dict[obj_meta.object_id]['brv'] = obj_brv
+                lcr_history[obj_meta.object_id]['delta_w'] = lcr_history[obj_meta.object_id]['width'] - obj_bb_coords.width
+                lcr_history[obj_meta.object_id]['delta_h'] = lcr_history[obj_meta.object_id]['height'] - obj_bb_coords.height
+                lcr_history[obj_meta.object_id]['direction'] = 'left' if obj_tlv[0] > lcr_history[obj_meta.object_id]['tlv'][0] else 'right' if obj_tlv[0] != lcr_history[obj_meta.object_id]['tlv'][0] else None
+                lcr_history[obj_meta.object_id]['width'] = obj_bb_coords.width
+                lcr_history[obj_meta.object_id]['height'] = obj_bb_coords.height
+                lcr_history[obj_meta.object_id]['tlv'] = obj_tlv
+                lcr_history[obj_meta.object_id]['brv'] = obj_brv
 
             # If an object is determined to be approaching us, we allow it to be placed into the...
             # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame          
             # FIXME URGENT, Key error 26, 3, 24, 9  
-            # if history_dict[info_tuple[3]]['delta_w'] >= 0:
+            # if lcr_history[info_tuple[3]]['delta_w'] >= 0:
             #     if obj_center_coords[0] < RIGHT[1]:
             #         right_det.append(info_tuple)
             #     elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
@@ -239,9 +239,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             #         left_det.append(info_tuple)
 
             # Clean out the history dictionary of all of the objects that were moving away.
-            for key, value in history_dict.items():
+            for key, value in lcr_history.items():
                 if value['delta_w'] < 0:
-                    history_dict.pop(key)
+                    lcr_history.pop(key)
 
         # Debug 
         location = 'None'
@@ -327,12 +327,12 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
                 # Overwrite left or right detection data sent from Jetson to Arduino Micro
                 # Cyclist's left side [object is passing close left (cyclist rear POV)]
-                if history_dict[obj_meta.object_id]['brv'][0] >= (1280 - 128) and history_dict[obj_meta.object_id]['delta_h'] > 0:
+                if lcr_history[obj_meta.object_id]['brv'][0] >= (1280 - 128) and lcr_history[obj_meta.object_id]['delta_h'] > 0:
                     uart_transmission.send("1" + c_data + r_data + battery_led)
                     location = 'Pass on Left'
 
                 # Cyclist's right side [object is passing close right (cyclist rear POV)]
-                elif history_dict[obj_meta.object_id]['tlv'][0] <= 128 and history_dict[obj_meta.object_id]['delta_h'] > 0:
+                elif lcr_history[obj_meta.object_id]['tlv'][0] <= 128 and lcr_history[obj_meta.object_id]['delta_h'] > 0:
                     uart_transmission.send(l_data + c_data + "1" + battery_led)
                     location = 'Pass on Right'
 

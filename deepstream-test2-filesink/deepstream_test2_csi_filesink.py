@@ -114,8 +114,12 @@ if serial_connected:
         serial_connected = False
 
 if battery_connected:
-    # battery status (hold the last known battery level)
-    bat_bus = smbus.SMBus(1)
+    try:
+        # battery status (hold the last known battery level)
+        bat_bus = smbus.SMBus(1)
+    except:
+        print("Exception: Battery Not Connected")
+        battery_connected = False
 
 previous_battery_state = ""
 
@@ -133,6 +137,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     global bus
     global loop
 
+    global previous_battery_state
+
+    
     gst_buffer = info.get_buffer()
     if not gst_buffer:
         print("Unable to get GstBuffer ")

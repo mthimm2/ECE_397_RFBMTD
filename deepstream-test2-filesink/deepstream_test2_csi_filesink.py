@@ -252,10 +252,10 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             #     else:
             #         left_det.append(info_tuple)
 
-            # Clean out the history dictionary of all of the objects that were moving away.
-            for key, value in lcr_history.copy().items() :
-                if value['delta_w'] < 0:
-                    lcr_history.pop(key)
+            # # Clean out the history dictionary of all of the objects that were moving away.
+            # for key, value in lcr_history.copy().items() :
+            #     if value['delta_w'] < 0:
+            #         lcr_history.pop(key)
 
         # Debug 
         location = 'None'
@@ -370,7 +370,11 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             
             # if serial_connected:
             #     uart_transmission.send("")
-
+            
+        # Clean out the history dictionary of all of the objects that were moving away.
+        for key, value in lcr_history.copy().items() :
+            if value['delta_w'] < 0:
+                lcr_history.pop(key)
 
         
         display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)

@@ -114,8 +114,6 @@ if battery_connected:
 
 previous_battery_data = ""
 
-# For Displaying of edge_case on Video OSD Print. 
-edge_case = None
 
 # osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
 # and update params for drawing rectangle, object information etc.
@@ -309,7 +307,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             else:
                 o_data = '00'
 
-            
+            edge_case = None
             # l_data=1
             # c_data=2
             # r_data=3

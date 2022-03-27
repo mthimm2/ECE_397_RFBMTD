@@ -100,7 +100,7 @@ FAR_WIDTH = 130
 
 
 # Turn on and off Functionality
-battery_connected = False
+battery_connected = True
 serial_connected = True
 
 
@@ -253,7 +253,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         left_data  = '0'
         center_data  = '0'
         right_data  = '0'
-        battery_data  = '00'
+        # battery_data  = '00'
 
         if obj_meta is not None:
 
@@ -352,8 +352,16 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                     uart_transmission.send(serial_data_package)
         # If obj_meta is None
         else:
-            if serial_connected:
-                uart_transmission.send("")
+            try:
+                l_frame=l_frame.next
+                continue
+            except StopIteration:
+                break
+
+            
+            # if serial_connected:
+            #     uart_transmission.send("")
+
 
         
         display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
@@ -367,7 +375,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # allocated string. Use pyds.get_string() to get the string content.
 
         # Change width to distance after calibration
-        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {} | Battery {}".format(location, obj,serial_data_package, battery_capacity)
+        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {} | Battery {}".format(location, obj_meta.object_id,serial_data_package, battery_capacity)
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10
@@ -386,6 +394,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # Using pyds.get_string() to get display_text as string
         print(pyds.get_string(py_nvosd_text_params.display_text))
         pyds.nvds_add_display_meta_to_frame(frame_meta, display_meta)
+
         try:
             l_frame=l_frame.next
         except StopIteration:
@@ -424,8 +433,8 @@ def decodebin_child_added(child_proxy,Object,name,useright_data):
     if(name.find("decodebin") != -1):
         Object.connect("child-added",decodebin_child_added,useright_data)
 
-    if "source" in name:
-        Object.set_property("drop-on-latency", True)
+    # if "source" in name:
+    #     Object.set_property("drop-on-latency", True)
 
 
 def create_source_bin(index,uri):

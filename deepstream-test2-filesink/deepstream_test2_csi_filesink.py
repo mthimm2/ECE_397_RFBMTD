@@ -105,14 +105,19 @@ serial_connected = True
 
 
 if serial_connected:
-    # Initialize UART_Jetson Object
-    uart_transmission = UART_Jetson()
+    try:
+        # Initialize UART_Jetson Object
+        uart_transmission = UART_Jetson()
+    
+    except:
+        print("Exception: Serial Not Connected")
+        serial_connected = False
 
 if battery_connected:
     # battery status (hold the last known battery level)
     bat_bus = smbus.SMBus(1)
 
-previous_battery_data = ""
+previous_battery_state = ""
 
 
 # osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
@@ -285,25 +290,25 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             if battery_connected:
                 # Battery functions 
-                battery_cap = readCapacity(bat_bus)
-                battery_data = ""
+                battery_capacity = readCapacity(bat_bus)
+                battery_state = ""
                 
-                if battery_data != previous_battery_data:
-                    if battery_cap > 75:
-                        battery_data = "4"
-                    elif battery_cap > 50:
-                        battery_data = "3"
-                    elif battery_cap > 25:
-                        battery_data = "2"
+                if battery_state != previous_battery_state:
+                    if battery_capacity > 75:
+                        battery_state = "4"
+                    elif battery_capacity > 50:
+                        battery_state = "3"
+                    elif battery_capacity > 25:
+                        battery_state = "2"
                     else:
-                        battery_data = "1"
+                        battery_state = "1"
 
-                    previous_battery_data = battery_data
+                    previous_battery_state = battery_state
 
             # Is the status LED for the battery?
             # if so then update the information scheme as needed
             if battery_connected:
-                o_data = f"0{battery_data}"   # status (0-1), battery (0-3)
+                o_data = f"0{battery_state}"   # status (0-1), battery (0-3)
             else:
                 o_data = '00'
 
@@ -331,7 +336,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                     uart_transmission.send(l_data + c_data + r_data + o_data)
 
         else:
-            uart_transmission.send('00' + '00' + '00' + '00')
+            if serial_connected:
+                uart_transmission.send('00' + '00' + '00' + '00')
 
         # Debug Print of Left Center and Right Coeff
         #print(l_coeff,c_coeff, r_coeff)

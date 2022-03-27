@@ -104,7 +104,7 @@ FAR_WIDTH = 130
 
 
 # Turn on and off Functionality
-battery_connected = False
+battery_connected = True
 serial_connected = True
 
 
@@ -120,8 +120,8 @@ if serial_connected:
 if battery_connected:
     try:
         # battery status (hold the last known battery level)
-        bat_bus = smbus.SMBus(0)
-        # bat_bus = smbus.SMBus(1)
+        bat_bus = smbus.SMBus(1)
+        
     except:
         print("Exception: Battery Not Connected")
         battery_connected = False
@@ -253,7 +253,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             #         left_det.append(info_tuple)
 
             # Clean out the history dictionary of all of the objects that were moving away.
-            for key, value in lcr_history.items():
+            for key, value in lcr_history.copy().items() :
                 if value['delta_w'] < 0:
                     lcr_history.pop(key)
 
@@ -338,7 +338,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 battery_data = battery_state
  
             serial_data_package = left_data + center_data + right_data + status_data + battery_data
-
+            print("serial Data: ", serial_data_package)
             # Send Serial Data
             if serial_connected: 
                 # Passing Edge Case for the right or left.  TODO check if this is accurate

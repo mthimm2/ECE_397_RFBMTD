@@ -224,6 +224,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             
             # Why is this seeing if object id is 0?
             elif obj_meta.object_id is 0:
+                print("obj_meta.object_id is 0")
                 lcr_history[obj_meta.object_id]['delta_w'] = lcr_history[obj_meta.object_id]['width'] - obj_bb_coords.width
                 lcr_history[obj_meta.object_id]['delta_h'] = lcr_history[obj_meta.object_id]['height'] - obj_bb_coords.height
                 lcr_history[obj_meta.object_id]['direction'] = 'left' if obj_tlv[0] > lcr_history[obj_meta.object_id]['tlv'][0] else 'right' if obj_tlv[0] != lcr_history[obj_meta.object_id]['tlv'][0] else None
@@ -375,7 +376,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # allocated string. Use pyds.get_string() to get the string content.
 
         # Change width to distance after calibration
-        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {} | Battery {}".format(location, obj_meta.object_id,serial_data_package, battery_capacity)
+        py_nvosd_text_params.display_text = "ID: {} | Location: {} | Serial Data: {} | Battery {}".format(object_id, location, serial_data_package, battery_capacity)
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10

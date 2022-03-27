@@ -218,13 +218,13 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # If an object is determined to be approaching us, we allow it to be placed into the...
             # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame          
             # FIXME URGENT, Key error 26, 3, 24, 9  
-            if history_dict[info_tuple[3]]['delta_w'] >= 0:
-                if obj_center_coords[0] < RIGHT[1]:
-                    right_det.append(info_tuple)
-                elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
-                    center_det.append(info_tuple)
-                else:
-                    left_det.append(info_tuple)
+            # if history_dict[info_tuple[3]]['delta_w'] >= 0:
+            #     if obj_center_coords[0] < RIGHT[1]:
+            #         right_det.append(info_tuple)
+            #     elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
+            #         center_det.append(info_tuple)
+            #     else:
+            #         left_det.append(info_tuple)
 
             # Clean out the history dictionary of all of the objects that were moving away.
             for key, value in history_dict.items():
@@ -331,7 +331,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                     uart_transmission.send(l_data + c_data + r_data + o_data)
 
         else:
-            uart_transmission.send('0' + '0' + '0' + '00')
+            uart_transmission.send('00' + '00' + '00' + '00')
 
         # Debug Print of Left Center and Right Coeff
         #print(l_coeff,c_coeff, r_coeff)
@@ -421,8 +421,8 @@ def decodebin_child_added(child_proxy,Object,name,user_data):
     if(name.find("decodebin") != -1):
         Object.connect("child-added",decodebin_child_added,user_data)
 
-    # if "source" in name:
-    #     Object.set_property("drop-on-latency", True)
+    if "source" in name:
+        Object.set_property("drop-on-latency", True)
 
 
 def create_source_bin(index,uri):
@@ -509,7 +509,7 @@ def main(args):
             sys.stderr.write("Unable to create source bin \n")
         
         pipeline.add(source_bin)
-        padname="sink_1"
+        padname="sink_0"
         print("padname: ", padname)
         
         file_in_sinkpad= streammux.get_request_pad(padname) 

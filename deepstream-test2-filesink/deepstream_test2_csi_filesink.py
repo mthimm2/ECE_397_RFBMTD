@@ -116,7 +116,7 @@ if serial_connected:
 if battery_connected:
     try:
         # battery status (hold the last known battery level)
-        bat_bus = smbus.SMBus(1)
+        bat_bus = smbus.SMBus(0)
     except:
         print("Exception: Battery Not Connected")
         battery_connected = False

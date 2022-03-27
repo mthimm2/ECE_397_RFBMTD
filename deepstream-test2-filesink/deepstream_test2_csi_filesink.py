@@ -209,7 +209,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # For the purpose of object distance calculation and position, we care mostly about bb width and bb center location
             info_tuple = (obj_bb_coords.width, obj_center_coords, obj_bb_area, obj_meta.object_id)
             
-            #print(info_tuple)
            
             # Initialize the object and insert it into the dictionary if not already provided : 0 is for car and 2 is for person
             if obj_meta.object_id not in lcr_history and obj_meta.class_id is 2: # TODO change 2 back to 0 to inference cars.
@@ -223,7 +222,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 lcr_history[obj_meta.object_id]['brv'] = obj_brv
             
             # Why is this seeing if object id is 0?
-            elif obj_meta.object_id is 0:
+            elif obj_meta.class_id is 0:
                 print("obj_meta.object_id is 0")
                 lcr_history[obj_meta.object_id]['delta_w'] = lcr_history[obj_meta.object_id]['width'] - obj_bb_coords.width
                 lcr_history[obj_meta.object_id]['delta_h'] = lcr_history[obj_meta.object_id]['height'] - obj_bb_coords.height

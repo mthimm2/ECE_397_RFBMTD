@@ -298,14 +298,15 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             left_data  = EncodeDistanceData(l_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
             center_data  = EncodeDistanceData(c_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
             right_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
-            status_data = "0"
+            status_data = "0" # Add statements for using the status light if an error is detected
             battery_data  = "0"
 
-            serial_package = left_data + center_data + right_data + status_data + battery_data
+            serial_data_package = ''
 
             # Battery ----------------------------------------
             if battery_connected:
-                # Battery functions 
+
+                # Only want to send data when the battery level has changed
                 battery_capacity = readCapacity(bat_bus)
                 battery_state = "0"
                 
@@ -317,69 +318,48 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                     battery_state = "2"
                 else:
                     battery_state = "1"
-                    
+
+                # Update the battery state if it has changed
                 if battery_state != previous_battery_state:
                     previous_battery_state = battery_state
             else:
                 battery_capacity = "NA"
                 battery_state = "0"
-
-            serial_package = left_data + center_data + right_data + status_data + battery_data
-            # Is the status LED for the battery?
-            # if so then update the information scheme as needed
-            # if battery_connected:
-            #     battery_data = f"0{battery_state}"   # status (0-1), battery (0-3)
-            # else:
-            #     battery_data = '00'
+                battery_data = battery_state
+ 
+            serial_data_package = left_data + center_data + right_data + status_data + battery_data
 
             # Send Serial Data
-            if serial_connected:
-                # Passing Case for the right or left. 
+            if serial_connected: 
+                # Passing Edge Case for the right or left.  TODO check if this is accurate
 
                 # Overwrite left or right detection data sent from Jetson to Arduino Micro
                 # Cyclist's left side [object is passing close left (cyclist rear POV)]
                 if lcr_history[obj_meta.object_id]['brv'][0] >= (1280 - 128) and lcr_history[obj_meta.object_id]['delta_h'] > 0:
-                    uart_transmission.send("1" + center_data + right_data + battery_data)
-                    location = 'Pass on Left'
+                    serial_data_package = "1" + serial_data_package[1:]
+                    uart_transmission.send(serial_data_package)
+                    #location = 'Pass on Left'
 
                 # Cyclist's right side [object is passing close right (cyclist rear POV)]
                 elif lcr_history[obj_meta.object_id]['tlv'][0] <= 128 and lcr_history[obj_meta.object_id]['delta_h'] > 0:
-                    uart_transmission.send(left_data + center_data + "1" + battery_data)
-                    location = 'Pass on Right'
+                    serial_data_package = serial_data_package[:1] + "1" + serial_data_package[3:]
+                    uart_transmission.send(serial_data_package)
+                    #location = 'Pass on Right'
 
                 else:
                     # object is not passing
-                    uart_transmission.send(left_data + center_data + right_data + status_data + battery_data)
-
+                    uart_transmission.send(serial_data_package)
+        # If obj_meta is None
         else:
             if serial_connected:
-                uart_transmission.send('00' + '00' + '00' + '00')
+                uart_transmission.send("")
 
-        # Debug Print of Left Center and Right Coeff
-        #print(l_coeff,c_coeff, r_coeff)
-
-        # Closest per segment known here
-            # Update FDU
-
-        ''' 
-            
-            Integration ends goes here
-        '''
-
-        # Based on where the center of the bounding box of the object is, we classify it as being in either the L,C, or R segment of the frame
-        '''
-            The away value assumes that the dirStatus field could have such a value.
-            No concrete examples were shown for what directions are possible.
-        '''
-    
-
-        # Acquiring a display meta object. The memory ownership remains in
-        # the C code so downstream plugins can still access it. Otherwise
-        # the garbage collector will claim it when this probe function exits.
+        
         display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
         display_meta.num_labels = 1
         py_nvosd_text_params = display_meta.text_params[0]
-        # Setting display text to be shown on screen
+        # Setting display text to be shown on screen ---------------------------------------------------------------------
+        
         # Note that the pyds module allocates a buffer for the string, and the
         # memory will not be claimed by the garbage collector.
         # Reading the display_text field here will return the C address of the

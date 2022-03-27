@@ -6,16 +6,24 @@ import time
 
 def readVoltage(bat_bus):
     address = 0x36
-    read = bat_bus.read_word_data(address, 2)
-    swapped = struct.unpack("<H", struct.pack(">H", read))[0]
-    voltage = swapped * 1.25 / 1000 / 16
+    
+    try:
+        read = bat_bus.read_word_data(address, 2)
+        swapped = struct.unpack("<H", struct.pack(">H", read))[0]
+        voltage = swapped * 1.25 / 1000 / 16
+    except: 
+        voltage = 0
+    
     return voltage
 
 def readCapacity(bat_bus):
     address = 0x36
-    read = bat_bus.read_word_data(address, 4)
-    swapped = struct.unpack("<H", struct.pack(">H", read))[0]
-    capacity = swapped / 256
+    try:
+        read = bat_bus.read_word_data(address, 4)
+        swapped = struct.unpack("<H", struct.pack(">H", read))[0]
+        capacity = swapped / 256
+    except:
+        capacity = 0
     return capacity
 
 if __name__ == "__main__":

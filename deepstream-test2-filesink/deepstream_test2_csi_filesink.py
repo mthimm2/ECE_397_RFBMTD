@@ -42,7 +42,7 @@ import struct
 import smbus
 
 
-bat_bus = smbus.SMBus(1)
+
 
 
 
@@ -121,6 +121,7 @@ if battery_connected:
     try:
         # battery status (hold the last known battery level)
         bat_bus = smbus.SMBus(0)
+        # bat_bus = smbus.SMBus(1)
     except:
         print("Exception: Battery Not Connected")
         battery_connected = False
@@ -141,6 +142,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     global bus
     global loop
 
+    global bat_busw
     global previous_battery_state
     global lcr_history
 
@@ -186,7 +188,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 break
 
             object_id = str(obj_meta.object_id)
-            print("object_id: ", object_id)
+            # print("object_id: ", object_id)
 
             # Debug for on screen display of class name 
             #class_id_index = obj_meta.class_id
@@ -200,8 +202,10 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             # Dive through casts to get the object's bounding box top left vertex, width, and height?
             #obj_bb_coords = pyds.NvBbox_Coords.cast(pyds.NvDsComp_BboxInfo.cast(obj_meta.tracker_bbox_info))
+
             obj_bb_coords = obj_meta.tracker_bbox_info.org_bbox_coords
-            print("obj_bb_coords: ", obj_bb_coords.top, " \n")
+            # print("obj_bb_coords: ", obj_bb_coords.top, " \n")
+
             # Used to determine whether or not an object is approaching or receding in frame
             obj_bb_area = obj_bb_coords.height * obj_bb_coords.width
 
@@ -215,7 +219,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             
             detection_object_class = 0 # 0: car, 2: person
 
-            print("LCR History: ", lcr_history)
+            # print("LCR History: ", lcr_history)
             # Initialize the object and insert it into the history dictionary if not already provided : 0 is for car and 2 is for person
             if obj_meta.object_id not in lcr_history and obj_meta.class_id is detection_object_class: # TODO change 2 back to 0 to inference cars.
                 lcr_history[obj_meta.object_id] = {}

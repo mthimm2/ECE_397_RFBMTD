@@ -307,26 +307,30 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             if battery_connected:
                 # Battery functions 
                 battery_capacity = readCapacity(bat_bus)
-                battery_state = ""
+                battery_state = "0"
                 
-                if battery_state != previous_battery_state: # Should this be moved to after the battery capacacity if? otherwise just eval "" = previous state
-                    if battery_capacity > 75:
-                        battery_state = "4"
-                    elif battery_capacity > 50:
-                        battery_state = "3"
-                    elif battery_capacity > 25:
-                        battery_state = "2"
-                    else:
-                        battery_state = "1"
-
+                if battery_capacity > 75:
+                    battery_state = "4"
+                elif battery_capacity > 50:
+                    battery_state = "3"
+                elif battery_capacity > 25:
+                    battery_state = "2"
+                else:
+                    battery_state = "1"
+                    
+                if battery_state != previous_battery_state:
                     previous_battery_state = battery_state
+            else:
+                battery_capacity = "NA"
+                battery_state = "0"
 
+            serial_package = left_data + center_data + right_data + status_data + battery_data
             # Is the status LED for the battery?
             # if so then update the information scheme as needed
-            if battery_connected:
-                battery_data = f"0{battery_state}"   # status (0-1), battery (0-3)
-            else:
-                battery_data = '00'
+            # if battery_connected:
+            #     battery_data = f"0{battery_state}"   # status (0-1), battery (0-3)
+            # else:
+            #     battery_data = '00'
 
             # Send Serial Data
             if serial_connected:

@@ -384,7 +384,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # allocated string. Use pyds.get_string() to get the string content.
 
         # Change width to distance after calibration
-        py_nvosd_text_params.display_text = "ID: {} | Location: {} | Serial Data: {} | Battery {}".format(object_id, location, serial_data_package, battery_capacity)
+        py_nvosd_text_params.display_text = "ID: {} | Location: {} | Serial Data: {} | Battery {:.2f}%".format(object_id, location, serial_data_package, battery_capacity)
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10

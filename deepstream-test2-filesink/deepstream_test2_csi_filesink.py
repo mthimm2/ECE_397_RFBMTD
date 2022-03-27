@@ -214,7 +214,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             info_tuple = (obj_bb_coords.width, obj_center_coords, obj_bb_area, obj_meta.object_id)
             
            
-            # Initialize the object and insert it into the dictionary if not already provided : 0 is for car and 2 is for person
+            # Initialize the object and insert it into the history dictionary if not already provided : 0 is for car and 2 is for person
             if obj_meta.object_id not in lcr_history and obj_meta.class_id is 2: # TODO change 2 back to 0 to inference cars.
                 lcr_history[obj_meta.object_id] = {}
                 lcr_history[obj_meta.object_id]['delta_w'] = 0
@@ -225,7 +225,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 lcr_history[obj_meta.object_id]['tlv'] = obj_tlv
                 lcr_history[obj_meta.object_id]['brv'] = obj_brv
             
-            # What dpes this elif do. 
+            # What dpes this elif do. Class Id for car is 0.
             elif obj_meta.class_id is 0:
                 print("obj_meta.object_id is 0")
                 lcr_history[obj_meta.object_id]['delta_w'] = lcr_history[obj_meta.object_id]['width'] - obj_bb_coords.width

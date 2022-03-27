@@ -206,7 +206,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 history_dict[obj_meta.object_id]['tlv'] = obj_tlv
                 history_dict[obj_meta.object_id]['brv'] = obj_brv
                 
-            elif obj_meta.class_id is 0:
+            elif obj_meta.object_id is 0:
                 history_dict[obj_meta.object_id]['delta_w'] = history_dict[obj_meta.object_id]['width'] - obj_bb_coords.width
                 history_dict[obj_meta.object_id]['delta_h'] = history_dict[obj_meta.object_id]['height'] - obj_bb_coords.height
                 history_dict[obj_meta.object_id]['direction'] = 'left' if obj_tlv[0] > history_dict[obj_meta.object_id]['tlv'][0] else 'right' if obj_tlv[0] != history_dict[obj_meta.object_id]['tlv'][0] else None

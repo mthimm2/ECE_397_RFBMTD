@@ -157,20 +157,20 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
     l_frame = batch_meta.frame_meta_list
     while l_frame is not None:
-
-        # Lists for objects detected in LRC regions
-        left_det, center_det, right_det = [], [], []
-
         try:
             frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
         
         except StopIteration:
             break
 
+        # Lists for objects detected in LRC regions
+        left_det, center_det, right_det = [], [], []
+
         # Get list of the objects in frames' metadata
         l_obj=frame_meta.obj_meta_list
 
         obj_meta = None
+
         while l_obj is not None:
             try:
                 # Casting l_obj.data to pyds.NvDsObjectMeta
@@ -181,6 +181,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             except StopIteration:
                 break
 
+            object_id = str(obj_meta.object_id)
+            print("object_id: ", object_id)
+
             # Debug for on screen display of class name 
             #class_id_index = obj_meta.class_id
             
@@ -190,14 +193,15 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 l_obj=l_obj.next
             except StopIteration:
                 break
+
             # Dive through casts to get the object's bounding box top left vertex, width, and height?
             #obj_bb_coords = pyds.NvBbox_Coords.cast(pyds.NvDsComp_BboxInfo.cast(obj_meta.tracker_bbox_info))
             obj_bb_coords = obj_meta.tracker_bbox_info.org_bbox_coords
-
+            print("obj_bb_coords: ", obj_bb_coords.top, " \n")
             # Used to determine whether or not an object is approaching or receding in frame
             obj_bb_area = obj_bb_coords.height * obj_bb_coords.width
 
-            # Construct the bounding box for this object.
+            # Construct the bounding box for this object. tvl top left vertex, brv: bottom right vertex
             obj_tlv = (obj_bb_coords.left, obj_bb_coords.top)
             obj_brv = (obj_bb_coords.left + obj_bb_coords.width, obj_bb_coords.top + obj_bb_coords.height)
             obj_center_coords = ((obj_tlv[0] + obj_brv[0]) / 2, (obj_tlv[1] + obj_brv[1]) / 2)
@@ -245,10 +249,10 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
         # Debug 
         location = 'None'
-        l_data  = '0'
-        c_data  = '0'
-        r_data  = '0'
-        battery_led  = '00'
+        left_data  = '0'
+        center_data  = '0'
+        right_data  = '0'
+        battery_data  = '00'
 
         if obj_meta is not None:
 
@@ -290,19 +294,22 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 B => 0, 1, 2, 3, 4         [0=off, 1 : < 25, 2 : >25,  3 : >50, 4 : >75]
                 Other Functions => TBD
             '''
+            # Serial Data Preprocessing
+            left_data  = EncodeDistanceData(l_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
+            center_data  = EncodeDistanceData(c_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
+            right_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
+            status_data = "0"
+            battery_data  = "0"
 
-            l_data  = EncodeDistanceData(l_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
-            c_data  = EncodeDistanceData(c_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
-            r_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
-            status_led = "0"
-            battery_led  = "0"
+            serial_package = left_data + center_data + right_data + status_data + battery_data
 
+            # Battery ----------------------------------------
             if battery_connected:
                 # Battery functions 
                 battery_capacity = readCapacity(bat_bus)
                 battery_state = ""
                 
-                if battery_state != previous_battery_state:
+                if battery_state != previous_battery_state: # Should this be moved to after the battery capacacity if? otherwise just eval "" = previous state
                     if battery_capacity > 75:
                         battery_state = "4"
                     elif battery_capacity > 50:
@@ -317,9 +324,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             # Is the status LED for the battery?
             # if so then update the information scheme as needed
             if battery_connected:
-                battery_led = f"0{battery_state}"   # status (0-1), battery (0-3)
+                battery_data = f"0{battery_state}"   # status (0-1), battery (0-3)
             else:
-                battery_led = '00'
+                battery_data = '00'
 
             # Send Serial Data
             if serial_connected:
@@ -328,17 +335,17 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 # Overwrite left or right detection data sent from Jetson to Arduino Micro
                 # Cyclist's left side [object is passing close left (cyclist rear POV)]
                 if lcr_history[obj_meta.object_id]['brv'][0] >= (1280 - 128) and lcr_history[obj_meta.object_id]['delta_h'] > 0:
-                    uart_transmission.send("1" + c_data + r_data + battery_led)
+                    uart_transmission.send("1" + center_data + right_data + battery_data)
                     location = 'Pass on Left'
 
                 # Cyclist's right side [object is passing close right (cyclist rear POV)]
                 elif lcr_history[obj_meta.object_id]['tlv'][0] <= 128 and lcr_history[obj_meta.object_id]['delta_h'] > 0:
-                    uart_transmission.send(l_data + c_data + "1" + battery_led)
+                    uart_transmission.send(left_data + center_data + "1" + battery_data)
                     location = 'Pass on Right'
 
                 else:
                     # object is not passing
-                    uart_transmission.send(l_data + c_data + r_data + battery_led)
+                    uart_transmission.send(left_data + center_data + right_data + status_data + battery_data)
 
         else:
             if serial_connected:
@@ -375,7 +382,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # allocated string. Use pyds.get_string() to get the string content.
 
         # Change width to distance after calibration
-        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {}".format(location,l_data+c_data+r_data+battery_led)
+        py_nvosd_text_params.display_text = "Location: {} | Serial Data: {}".format(location,left_data+center_data+right_data+battery_data)
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10
@@ -427,10 +434,10 @@ def cb_newpad(decodebin, decoder_src_pad,data):
         else:
             sys.stderr.write(" Error: Decodebin did not pick nvidia decoder plugin.\n")
 
-def decodebin_child_added(child_proxy,Object,name,user_data):
+def decodebin_child_added(child_proxy,Object,name,useright_data):
     print("Decodebin child added:", name, "\n")
     if(name.find("decodebin") != -1):
-        Object.connect("child-added",decodebin_child_added,user_data)
+        Object.connect("child-added",decodebin_child_added,useright_data)
 
     if "source" in name:
         Object.set_property("drop-on-latency", True)
@@ -520,7 +527,7 @@ def main(args):
             sys.stderr.write("Unable to create source bin \n")
         
         pipeline.add(source_bin)
-        padname="sink_0"
+        padname="sink_3"
         print("padname: ", padname)
         
         file_in_sinkpad= streammux.get_request_pad(padname) 

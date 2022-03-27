@@ -221,7 +221,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 lcr_history[obj_meta.object_id]['height'] = obj_bb_coords.height
                 lcr_history[obj_meta.object_id]['tlv'] = obj_tlv
                 lcr_history[obj_meta.object_id]['brv'] = obj_brv
-                
+            
+            # Why is this seeing if object id is 0?
             elif obj_meta.object_id is 0:
                 lcr_history[obj_meta.object_id]['delta_w'] = lcr_history[obj_meta.object_id]['width'] - obj_bb_coords.width
                 lcr_history[obj_meta.object_id]['delta_h'] = lcr_history[obj_meta.object_id]['height'] - obj_bb_coords.height

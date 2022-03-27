@@ -38,8 +38,12 @@ import pyds
 
 # Import Battery Module
 from battery_module import *
-# bat_bus = smbus.SMBus(1)
-bat_bus = None
+import struct
+import smbus
+
+
+bat_bus = smbus.SMBus(1)
+
 
 
 # Import Uart Communication Module
@@ -221,7 +225,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 lcr_history[obj_meta.object_id]['tlv'] = obj_tlv
                 lcr_history[obj_meta.object_id]['brv'] = obj_brv
             
-            # Why is this seeing if object id is 0?
+            # What dpes this elif do. 
             elif obj_meta.class_id is 0:
                 print("obj_meta.object_id is 0")
                 lcr_history[obj_meta.object_id]['delta_w'] = lcr_history[obj_meta.object_id]['width'] - obj_bb_coords.width
@@ -233,8 +237,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 lcr_history[obj_meta.object_id]['brv'] = obj_brv
 
             # If an object is determined to be approaching us, we allow it to be placed into the...
-            # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame          
-            # FIXME URGENT, Key error 26, 3, 24, 9  
+            # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame  
             # if lcr_history[info_tuple[3]]['delta_w'] >= 0:
             #     if obj_center_coords[0] < RIGHT[1]:
             #         right_det.append(info_tuple)

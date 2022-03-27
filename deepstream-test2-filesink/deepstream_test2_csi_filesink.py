@@ -138,7 +138,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     global loop
 
     global previous_battery_state
-
+    global history_dict
 
     gst_buffer = info.get_buffer()
     if not gst_buffer:
@@ -320,10 +320,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 battery_led = f"0{battery_state}"   # status (0-1), battery (0-3)
             else:
                 battery_led = '00'
-
-            # l_data=1
-            # c_data=2
-            # r_data=3
 
             # Send Serial Data
             if serial_connected:

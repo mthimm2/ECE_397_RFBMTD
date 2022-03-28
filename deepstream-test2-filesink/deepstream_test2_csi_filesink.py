@@ -258,18 +258,19 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             # If an object is determined to be approaching us, we allow it to be placed into the...
             # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame  
-            if lcr_history[info_tuple[3]]['delta_w'] >= 0:
-                if obj_center_coords[0] < RIGHT[1]:
-                    right_det.append(info_tuple)
-                elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
-                    center_det.append(info_tuple)
-                else:
-                    left_det.append(info_tuple)
+            if obj_meta.class_id == detection_object_class:
+                if lcr_history[obj_meta.object_id]['delta_w'] >= 0:
+                    if obj_center_coords[0] < RIGHT[1]:
+                        right_det.append(info_tuple)
+                    elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
+                        center_det.append(info_tuple)
+                    else:
+                        left_det.append(info_tuple)
 
-            # # Clean out the history dictionary of all of the objects that were moving away.
-            # for key, value in lcr_history.copy().items() :
-            #     if value['delta_w'] < 0:
-            #         lcr_history.pop(key)
+            # Clean out the history dictionary of all of the objects that were moving away.
+            for key, value in lcr_history.copy().items() :
+                if value['delta_w'] < 0:
+                    lcr_history.pop(key)
 
         # Debug 
         location = 'None'
@@ -333,7 +334,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             status_data = "0" # Add statements for using the status light if an error is detected
             battery_data  = "0"
 
-            # serial_data_package = ''
+            serial_data_package = '00000'
 
             # Battery ----------------------------------------
             if battery_connected:
@@ -384,6 +385,12 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 else:
                     # object is not passing
                     uart_transmission.send(serial_data_package)
+        
+            # # Clean out the history dictionary of all of the objects that were moving away.
+            # for key, value in lcr_history.copy().items() :
+            #     if value['delta_w'] < 0:
+            #         lcr_history.pop(key)
+
         # If obj_meta is None
         else:
             try:

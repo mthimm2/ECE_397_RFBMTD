@@ -41,6 +41,14 @@ from battery_module import *
 import struct
 import smbus
 
+# # Import GPIO For Button Presses
+# import Jetson.GPIO as GPIO
+# # Pin Definitions
+# input_pin = 10  # BCM pin 6, BOARD pin 31
+# # Connect 3.3v 4.7K to 10K Pull up resistor to input pin and connect button to input_pin and ground.
+# # Pin Setup:
+# GPIO.setmode(GPIO.BCM)  # BCM pin-numbering scheme from Raspberry Pi
+# GPIO.setup(input_pin, GPIO.IN)  # set pin as an input pin
 
 
 
@@ -128,6 +136,11 @@ if battery_connected:
 
 previous_battery_state = ""
 
+# Button Pressed Interupt
+def button_pressed(channel):
+    print("Button Pressed")
+
+
 
 # osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
 # and update params for drawing rectangle, object information etc.
@@ -157,8 +170,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     # Debug Default index for class name, Used for Printing out what object is detected on screen.
     #class_id_index = 4
     
-    # Debug: Set info_tuple default value so if l_obj is None it will be defined when debug is displaying info_tuple name.
-    #info_tuple = (0,0,0)
+    # Debug: Set info_tupleuple default value so if l_obj is None it will be defined when debug is displaying info_tupleuple name.
+    #info_tupleuple = (0,0,0)
     
 
     l_frame = batch_meta.frame_meta_list
@@ -176,6 +189,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         l_obj=frame_meta.obj_meta_list
 
         obj_meta = None
+
 
         while l_obj is not None:
             try:
@@ -215,7 +229,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             obj_center_coords = ((obj_tlv[0] + obj_brv[0]) / 2, (obj_tlv[1] + obj_brv[1]) / 2)
 
             # For the purpose of object distance calculation and position, we care mostly about bb width and bb center location
-            info_tuple = (obj_bb_coords.width, obj_center_coords, obj_bb_area, obj_meta.object_id)
+            info_tupleuple = (obj_bb_coords.width, obj_center_coords, obj_bb_area, obj_meta.object_id)
             
             detection_object_class = 0 # 0: car, 2: person
 
@@ -244,13 +258,13 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             # If an object is determined to be approaching us, we allow it to be placed into the...
             # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame  
-            # if lcr_history[info_tuple[3]]['delta_w'] >= 0:
-            #     if obj_center_coords[0] < RIGHT[1]:
-            #         right_det.append(info_tuple)
-            #     elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
-            #         center_det.append(info_tuple)
-            #     else:
-            #         left_det.append(info_tuple)
+            if lcr_history[info_tupleuple[3]]['delta_w'] >= 0:
+                if obj_center_coords[0] < RIGHT[1]:
+                    right_det.append(info_tupleuple)
+                elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
+                    center_det.append(info_tupleuple)
+                else:
+                    left_det.append(info_tupleuple)
 
             # # Clean out the history dictionary of all of the objects that were moving away.
             # for key, value in lcr_history.copy().items() :
@@ -263,13 +277,15 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         center_data  = '0'
         right_data  = '0'
         # battery_data  = '00'
+        serial_data_package = ''
+
 
         if obj_meta is not None:
 
             # Determine closes object in each frame
-            l_max_width = max([info_t[0] for info_t in left_det])   if len(left_det)    > 0 else 0
-            r_max_width = max([info_t[0] for info_t in right_det])  if len(right_det)   > 0 else 0
-            c_max_width = max([info_t[0] for info_t in center_det]) if len(center_det)  > 0 else 0
+            l_max_width = max([info_tuple[0] for info_tuple in left_det])   if len(left_det)    > 0 else 0
+            r_max_width = max([info_tuple[0] for info_tuple in right_det])  if len(right_det)   > 0 else 0
+            c_max_width = max([info_tuple[0] for info_tuple in center_det]) if len(center_det)  > 0 else 0
 
             '''
                 Do we need to have any special considerations for objects not in the center segment?
@@ -289,7 +305,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             location_list = ['Left','Center','Right']
             max_coeff = max(coeff)
             max_index = coeff.index(max_coeff)
-            location=location_list[max_index]     
+            location = location_list[max_index]     
 
             # Distance estimation function:
             # distance = c_coeff*var 
@@ -305,13 +321,19 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 Other Functions => TBD
             '''
             # Serial Data Preprocessing
+            print("L_max_width: ", l_max_width)
+            print("C_max_width: ", c_max_width)
+            print("R_max_width: ", r_max_width)
             left_data  = EncodeDistanceData(l_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
             center_data  = EncodeDistanceData(c_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
             right_data  = EncodeDistanceData(r_max_width, CLOSE_WIDTH, MED_WIDTH, FAR_WIDTH)
+
+            # Object Tracking Location
+
             status_data = "0" # Add statements for using the status light if an error is detected
             battery_data  = "0"
 
-            serial_data_package = ''
+            # serial_data_package = ''
 
             # Battery ----------------------------------------
             if battery_connected:
@@ -329,16 +351,17 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 else:
                     battery_state = "1"
 
+                print("Battery State:", battery_state)
                 # Update the battery state if it has changed
                 if battery_state != previous_battery_state:
                     previous_battery_state = battery_state
             else:
-                battery_capacity = "NA"
+                battery_capacity = -1
                 battery_state = "0"
                 battery_data = battery_state
  
             serial_data_package = left_data + center_data + right_data + status_data + battery_data
-            print("serial Data: ", serial_data_package)
+            print("Serial Data: ", serial_data_package)
             # Send Serial Data
             if serial_connected: 
                 # Passing Edge Case for the right or left.  TODO check if this is accurate
@@ -347,12 +370,14 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 # Cyclist's left side [object is passing close left (cyclist rear POV)]
                 if lcr_history[obj_meta.object_id]['brv'][0] >= (1280 - 128) and lcr_history[obj_meta.object_id]['delta_h'] > 0:
                     serial_data_package = "1" + serial_data_package[1:]
+                    print("Serial Data: ", serial_data_package)
                     uart_transmission.send(serial_data_package)
                     #location = 'Pass on Left'
 
                 # Cyclist's right side [object is passing close right (cyclist rear POV)]
                 elif lcr_history[obj_meta.object_id]['tlv'][0] <= 128 and lcr_history[obj_meta.object_id]['delta_h'] > 0:
                     serial_data_package = serial_data_package[:1] + "1" + serial_data_package[3:]
+                    print("serial Data: ", serial_data_package)
                     uart_transmission.send(serial_data_package)
                     #location = 'Pass on Right'
 
@@ -377,10 +402,16 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 lcr_history.pop(key)
 
         
+        # Check for GPIO Pin Change --------------------------------------------------------------------------------------
+        # GPIO.add_event_detect(input_pin, GPIO.FALLING, callback=button_pressed, bouncetime=1)
+
+
+
+        # Setting display text to be shown on screen ---------------------------------------------------------------------
         display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
         display_meta.num_labels = 1
         py_nvosd_text_params = display_meta.text_params[0]
-        # Setting display text to be shown on screen ---------------------------------------------------------------------
+        
         
         # Note that the pyds module allocates a buffer for the string, and the
         # memory will not be claimed by the garbage collector.
@@ -388,7 +419,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # allocated string. Use pyds.get_string() to get the string content.
 
         # Change width to distance after calibration
-        py_nvosd_text_params.display_text = "ID: {} | Location: {} | Serial Data: {} | Battery {:.2f}%".format(object_id, location, serial_data_package, battery_capacity)
+        py_nvosd_text_params.display_text = "ID: {} | L:{} C:{} R:{} | Serial Data: {} | Battery {:.1f}%".format(object_id, left_data,center_data,right_data , serial_data_package, battery_capacity)
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10
@@ -487,8 +518,6 @@ def create_source_bin(index,uri):
     return nbin
 
 
-
-# TODO Add transfor to be queue for arch 64. 
 def main(args):
     global pipeline
     global bus
@@ -516,7 +545,6 @@ def main(args):
         sys.stderr.write(" Unable to create NvStreamMux \n")
     pipeline.add(streammux)
 
-    # TODO Implement File Input Inference
     # If input parameter is passed via an argument then use that as the input source and not the CSI camera.
     if input_file is not None:
         
@@ -536,6 +564,8 @@ def main(args):
         pipeline.add(source_bin)
         padname="sink_3"
         print("padname: ", padname)
+
+        #TODO Determine if a video convert is needed to turn 1080p video into 720p video
         
         file_in_sinkpad= streammux.get_request_pad(padname) 
         if not file_in_sinkpad:
@@ -547,44 +577,6 @@ def main(args):
         
         srcpad_bin.link(file_in_sinkpad)
 
-        # New structure -----------------
-
-
-        # # Source element for reading from the file
-        # print("Playing file %s " % input_file)
-        # source = Gst.ElementFactory.make("filesrc", "file-source")
-        # if not source:
-        #     sys.stderr.write(" Unable to create file source \n")
-        
-        # source.set_property('location', input_file)
-        # # Since the data format in the input file is elementary h264 stream,
-        # # we need a h264parser
-        
-
-        # # qtdemux = Gst.ElementFactory.make("qtdemux", "qtdemuxer_file_input")
-        # # if not qtdemux:
-        # #     sys.stderr.write(" Unable to create qtdemuxer \n")
-        # # qtdemux_src_pad = qtdemux.get_request_pad("video_0")
-        # # print("Creating H264Parser \n")
-
-        # # Changing input to Mpeg-4     
-        # input_file_parser = Gst.ElementFactory.make("h264parse", "parser_input")
-        # if not input_file_parser:
-        #     sys.stderr.write(" Unable to create h264 parser \n")
-        
-        
-        # # # Create a caps filter for NVMM and resolution scaling
-        # # caps_decoder = Gst.ElementFactory.make("capsfilter", "filter")
-        # # caps_decoder.set_property("caps", Gst.Caps.from_string("video/x-raw(memory:NVMM), format=I420"))
-
-
-        # # Use nvdec_h264 for hardware accelerated decode on GPU|   was nvv4l2decoder trying omxh264dec , now trying avdec_mpeg4, now avdec_h264
-        # print("Creating Decoder \n")
-        # decoder = Gst.ElementFactory.make("avdec_h264", "input_file_decoder")
-        # if not decoder:
-        #     sys.stderr.write(" Unable to create input Decoder \n")
-
-        
     
     else:
         # Source element for csi camera 
@@ -933,10 +925,13 @@ def main(args):
     bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)
     print("Stopping pipeline")
     
-    # cleanup Pipeline and Serial Port
+    # cleanup Pipeline and Serial Port and GPIO
     pipeline.set_state(Gst.State.NULL)
     if serial_connected:
         uart_transmission.serial_cleanup()
+    GPIO.cleanup()
+
+    
 
 
 

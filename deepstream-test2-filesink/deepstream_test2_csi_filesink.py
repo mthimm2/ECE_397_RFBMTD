@@ -170,8 +170,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     # Debug Default index for class name, Used for Printing out what object is detected on screen.
     #class_id_index = 4
     
-    # Debug: Set info_tupleuple default value so if l_obj is None it will be defined when debug is displaying info_tupleuple name.
-    #info_tupleuple = (0,0,0)
+    # Debug: Set info_tuple default value so if l_obj is None it will be defined when debug is displaying info_tuple name.
+    #info_tuple = (0,0,0)
     
 
     l_frame = batch_meta.frame_meta_list
@@ -229,7 +229,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             obj_center_coords = ((obj_tlv[0] + obj_brv[0]) / 2, (obj_tlv[1] + obj_brv[1]) / 2)
 
             # For the purpose of object distance calculation and position, we care mostly about bb width and bb center location
-            info_tupleuple = (obj_bb_coords.width, obj_center_coords, obj_bb_area, obj_meta.object_id)
+            info_tuple = (obj_bb_coords.width, obj_center_coords, obj_bb_area, obj_meta.object_id)
             
             detection_object_class = 0 # 0: car, 2: person
 
@@ -258,13 +258,13 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             # If an object is determined to be approaching us, we allow it to be placed into the...
             # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame  
-            if lcr_history[info_tupleuple[3]]['delta_w'] >= 0:
+            if lcr_history[info_tuple[3]]['delta_w'] >= 0:
                 if obj_center_coords[0] < RIGHT[1]:
-                    right_det.append(info_tupleuple)
+                    right_det.append(info_tuple)
                 elif obj_center_coords[0] >= CENTER[0] and obj_center_coords[0] < CENTER[1]:
-                    center_det.append(info_tupleuple)
+                    center_det.append(info_tuple)
                 else:
-                    left_det.append(info_tupleuple)
+                    left_det.append(info_tuple)
 
             # # Clean out the history dictionary of all of the objects that were moving away.
             # for key, value in lcr_history.copy().items() :

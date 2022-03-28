@@ -1,4 +1,5 @@
-# ECE_397_RFBTD
-Rear-facing bike traffic detector using ML for object detection
+# ECE 397 Senior design project:
+## Rear-facing bike traffic detector using ML for object detection
 
-Todo: make a proper Read Me file
+# This branch is experimental and is for testing the hardware encoding of a file sink in the main detection program deepstream_py
+

@@ -114,7 +114,7 @@ FAR_WIDTH = 130
 # Turn on and off Functionality
 battery_connected = True
 serial_connected = True
-
+gpio_connected = False
 
 if serial_connected:
     try:
@@ -929,7 +929,8 @@ def main(args):
     pipeline.set_state(Gst.State.NULL)
     if serial_connected:
         uart_transmission.serial_cleanup()
-    GPIO.cleanup()
+    if gpio_connected:
+        GPIO.cleanup()
 
     
 

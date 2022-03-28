@@ -643,6 +643,7 @@ def main(args):
         sys.stderr.write(" Unable to create queue_2\n")
     #queue2.set_property("flush-on-eos",True) # maybe needed to flush the buffer possibly losing some data to ensure that mp4 is saved if encoding is slow
 
+    # TODO Add third queue (leaky) and branch off from tee and connect to APPSINK
     
 
     # Make the h264 encoder

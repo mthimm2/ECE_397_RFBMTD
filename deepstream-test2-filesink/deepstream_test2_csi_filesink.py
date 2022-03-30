@@ -17,6 +17,12 @@
 # limitations under the License.
 ################################################################################
 
+# TODO List
+# 1. FIX EOS not working
+# 2. Convert gstreamer to Object Oriented
+# 3. Fix all of the keyerrors
+# 4. Calibrate the Coeff 
+# 5. Verify that the system is sending the correct serial data.
 
 
 import sys
@@ -918,9 +924,12 @@ def main(args):
 
     # Wait for EOS before closing the pipeline Gst.CLOCK_TIME_NONE -> poll indefinitly untill message (EOS) is recieved
     # this function will block forever until a matching message was posted on the bus.
-    pipeline.send_event(Gst.Event.new_eos())
+    pipeline.send_event(filesink_mp4, Gst.Event.new_eos())
     print("Waiting for the EOS message on the bus")
 
+    #Check if this is accurate.
+    bus.poll(bus, ) 
+    #gst_bus_poll(bus,GST_MESSAGE_EOS,GST_CLOCK_TIME_NONE)
     # Wait for 5 seconds if the EOS from downstream somehow gets terminated before reaching head it will hand. Forcing EOS will possibly corrupt mp4
     bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)
     print("Stopping pipeline")

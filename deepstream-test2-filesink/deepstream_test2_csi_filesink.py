@@ -31,7 +31,9 @@ import configparser
 
 import gi
 gi.require_version('Gst', '1.0')
-from gi.repository import GObject, Gst
+gi.require_version('GLib', '2.0')
+gi.require_version('GObject', '2.0')
+from gi.repository import GObject, Gst, GLib
 from common.is_aarch_64 import is_aarch64
 from common.bus_call import bus_call
 import pyds
@@ -58,8 +60,8 @@ import smbus
 from uart_module import *
 
 # To Print The dot graph Gstreamer pipeline
-os.environ["GST_DEBUG_DUMP_DOT_DIR"] = "/tmp"
-os.putenv('GST_DEBUG_DUMP_DIR_DIR', '/tmp')
+os.environ["GST_DEBUG_DUMP_DOT_DIR"] = "/home/team3/Documents/Pipeline_Config"
+os.putenv('GST_DEBUG_DUMP_DIR_DIR', '/home/team3/Documents/Pipeline_Config')
 
 # Program Parameters
 RECORD_ON = True
@@ -539,6 +541,8 @@ def main(args):
     global loop
     global input_file 
 
+    message = None
+
     # Standard GStreamer initialization
     GObject.threads_init()
     Gst.init(None)
@@ -695,6 +699,7 @@ def main(args):
     filesink_mp4.set_property("location","/home/team3/Videos/Video_Out/"+ current_time +".mp4")
     filesink_mp4.set_property("sync", False) # Was 1 ,Works with 0
     filesink_mp4.set_property("async", False)# was 0, works with 1
+    # filesink_mp4.set_property('max-lateness', 1000000000)
 
 
     if (no_display):
@@ -885,10 +890,12 @@ def main(args):
     if not container_sink:
         sys.stderr.write("Unable to create sink pad of container \n")
     
+
     video_parser_src = video_parser.get_static_pad("src")
     if not video_parser_src:
         sys.stderr.write("Unable to get src pad from video parser \n")
     
+
     video_parser_src.link(container_sink)
     container.link(filesink_mp4)
 
@@ -911,6 +918,7 @@ def main(args):
     
     # create and event loop and feed gstreamer bus mesages to it
     loop = GObject.MainLoop()
+    # loop = GLib.MainLoop()
     bus = pipeline.get_bus()
     bus.add_signal_watch()
     bus.connect ('message', bus_call, loop)
@@ -933,26 +941,27 @@ def main(args):
     try:
       loop.run()
     except:
-        print("Sending an EOS event to the pipeline")
         pass
 
 
     
+    print("Quiting the Loop")
+    # loop.quit()
+    # loop.unref()
+    print("Sending an EOS event to the pipeline")
+    pipeline.send_event(Gst.Event.new_eos())
+    
 
     # Wait for EOS before closing the pipeline Gst.CLOCK_TIME_NONE -> poll indefinitly untill message (EOS) is recieved
     # this function will block forever until a matching message was posted on the bus.
-    # pipeline.set_state(Gst.State.PAUSED)
     # print("Pausing the pipeline")
-
+    # pipeline.set_state(Gst.State.PAUSED)
 
     # event = Gst.Event.new_eos()
     #Gst.Element.send_event(pipeline, event)
-    
 
-    pipeline.send_event(Gst.Event.new_eos())
-    print("Waiting for the EOS message on the bus")
-    
     # Wait for 10 seconds if the EOS from downstream somehow gets terminated before reaching head it will hand. Forcing EOS will possibly corrupt mp4
+    print("Waiting for the EOS message on the bus")
     bus.timed_pop_filtered(10000000000, Gst.MessageType.EOS)
     print("Stopping pipeline")
     
@@ -1014,45 +1023,45 @@ def parse_args():
 
 
 # Software call to exit the program
-def exit_call():
-    global pipeline
-    global bus
-    global loop
+# def exit_call():
+#     global pipeline
+#     global bus
+#     global loop
 
     
-    pipeline.send_event(Gst.Event.new_eos())
-    print("Waiting for the EOS message on the bus")
-    bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)
-    print("Stopping pipeline")
-    pipeline.set_state(Gst.State.NULL)
-    print("Program Exited Sucessfully")
+#     pipeline.send_event(Gst.Event.new_eos())
+#     print("Waiting for the EOS message on the bus")
+#     bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)
+#     print("Stopping pipeline")
+#     pipeline.set_state(Gst.State.NULL)
+#     print("Program Exited Sucessfully")
     
-    return 0
+#     return 0
 
-# Bus message handeling 
-def bus_call(bus, message, loop):
-    global g_eos_list
-    t = message.type
-    if t == Gst.MessageType.EOS:
-        sys.stdout.write("End-of-stream\n")
-        loop.quit()
-    elif t==Gst.MessageType.WARNING:
-        err, debug = message.parse_warning()
-        sys.stderr.write("Warning: %s: %s\n" % (err, debug))
-    elif t == Gst.MessageType.ERROR:
-        err, debug = message.parse_error()
-        sys.stderr.write("Error: %s: %s\n" % (err, debug))
-        loop.quit()
-    elif t == Gst.MessageType.ELEMENT:
-        struct = message.get_structure()
-        #Check for stream-eos message
-        if struct is not None and struct.has_name("stream-eos"):
-            parsed, stream_id = struct.get_uint("stream-id")
-            if parsed:
-                #Set eos status of stream to True, to be deleted in delete-sources
-                print("Got EOS from stream %d" % stream_id)
-                g_eos_list[stream_id] = True
-    return True
+# # Bus message handeling 
+# def bus_call(bus, message, loop):
+#     global g_eos_list
+#     t = message.type
+#     if t == Gst.MessageType.EOS:
+#         sys.stdout.write("End-of-stream\n")
+#         loop.quit()
+#     elif t==Gst.MessageType.WARNING:
+#         err, debug = message.parse_warning()
+#         sys.stderr.write("Warning: %s: %s\n" % (err, debug))
+#     elif t == Gst.MessageType.ERROR:
+#         err, debug = message.parse_error()
+#         sys.stderr.write("Error: %s: %s\n" % (err, debug))
+#         loop.quit()
+#     elif t == Gst.MessageType.ELEMENT:
+#         struct = message.get_structure()
+#         #Check for stream-eos message
+#         if struct is not None and struct.has_name("stream-eos"):
+#             parsed, stream_id = struct.get_uint("stream-id")
+#             if parsed:
+#                 #Set eos status of stream to True, to be deleted in delete-sources
+#                 print("Got EOS from stream %d" % stream_id)
+#                 g_eos_list[stream_id] = True
+#     return True
 
 
 # def stop_release_source(source_id):

@@ -258,7 +258,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
             # If an object is determined to be approaching us, we allow it to be placed into the...
             # Based on where the center of the bb of the object is, we classify it as being in either the L,C, or R segment of the frame  
-            if obj_meta.class_id == detection_object_class:
+            # if obj_meta.object_id in lcr_history and obj_meta.class_id is detection_object_class:
+            if obj_meta.object_id in lcr_history:
                 if lcr_history[obj_meta.object_id]['delta_w'] >= 0:
                     if obj_center_coords[0] < RIGHT[1]:
                         right_det.append(info_tuple)
@@ -363,6 +364,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
  
             serial_data_package = left_data + center_data + right_data + status_data + battery_data
             print("Serial Data: ", serial_data_package)
+
+            '''
+            # TODO: uncomment block
             # Send Serial Data
             if serial_connected: 
                 # Passing Edge Case for the right or left.  TODO check if this is accurate
@@ -385,6 +389,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 else:
                     # object is not passing
                     uart_transmission.send(serial_data_package)
+            '''
+            
+            uart_transmission.send(serial_data_package)
         
             # # Clean out the history dictionary of all of the objects that were moving away.
             # for key, value in lcr_history.copy().items() :

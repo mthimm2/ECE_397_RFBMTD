@@ -671,7 +671,7 @@ def main(args):
         sys.stderr.write(" Unable to create parser\n")
     video_parser.set_property('config-interval', -1) # TODO See if this helps the issue of unreadable mp4 file if not remove.
 
-    
+    #mpegtsmux (previously: mp4mux) or qtmux
     container = Gst.ElementFactory.make("mp4mux","muxer")
     if not container:
         sys.stderr.write(" Unable to create mp4mux\n")
@@ -679,12 +679,13 @@ def main(args):
     filesink_mp4 = Gst.ElementFactory.make("filesink","filesink_video")
     if not filesink_mp4:
         sys.stderr.write(" Unable to create filesink\n")
+    
 
     current_time = time.localtime()
     current_time = time.strftime("%b-%d-%Y_%H:%M:%S", current_time)
     filesink_mp4.set_property("location","/home/team3/Videos/Video_Out/"+ current_time +".mp4")
-    filesink_mp4.set_property("sync",1) # Was 1 ,Works with 0
-    filesink_mp4.set_property("async",0)# was 0, works with 1
+    filesink_mp4.set_property("sync",0) # Was 1 ,Works with 0
+    filesink_mp4.set_property("async",1)# was 0, works with 1
 
 
     if (no_display):
@@ -898,7 +899,7 @@ def main(args):
     loop = GObject.MainLoop()
     bus = pipeline.get_bus()
     bus.add_signal_watch()
-    bus.connect ("message", bus_call, loop)
+    bus.connect ('message', bus_call, loop)
     
     
 
@@ -919,18 +920,28 @@ def main(args):
       loop.run()
     except:
         print("Sending an EOS event to the pipeline")
+        # print("Sending EOS to Filesink_mp4")
+        # pipeline.send_event(Gst.Event.new_eos(), filesink_mp4)
         pass
 
-    
+
     
 
     # Wait for EOS before closing the pipeline Gst.CLOCK_TIME_NONE -> poll indefinitly untill message (EOS) is recieved
     # this function will block forever until a matching message was posted on the bus.
-    pipeline.send_event(Gst.Event.new_eos())
+    pipeline.set_state(Gst.State.PAUSED)
+    print("Pausing the pipeline")
+
+
+    event = Gst.Event.new_eos()
+    Gst.Element.send_event(self.pipeline, event)
+    
+
+    # pipeline.send_event(Gst.Event.new_eos())
     print("Waiting for the EOS message on the bus")
 
-    # Wait for 5 seconds if the EOS from downstream somehow gets terminated before reaching head it will hand. Forcing EOS will possibly corrupt mp4
-    bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)
+    # Wait for 10 seconds if the EOS from downstream somehow gets terminated before reaching head it will hand. Forcing EOS will possibly corrupt mp4
+    # bus.timed_pop_filtered(10000000000, Gst.MessageType.EOS)
     print("Stopping pipeline")
     
     # cleanup Pipeline and Serial Port and GPIO
@@ -939,6 +950,9 @@ def main(args):
         uart_transmission.serial_cleanup()
     if gpio_connected:
         GPIO.cleanup()
+
+    return 0
+
 
     
 
@@ -980,10 +994,10 @@ def parse_args():
     return 0
 
 # Other Exit Call - TODO see if this exits more gracefully
-def exit_call2():
-    sys.exit(main(sys.argv))
+# def exit_call2():
+#     sys.exit(main(sys.argv))
     
-    return 0
+#     return 0
 
 
 

@@ -624,7 +624,7 @@ def main(args):
         sys.stderr.write(" Unable to create tracker \n")
 
     # Use Converter to convert from NV12 to RGBA as required by nvosd
-    nvvidconv = Gst.ElementFactory.make("nvvideoconvert", "convertor")
+    nvvidconv = Gst.ElementFactory.make("nvvideoconvert", "converter")
     if not nvvidconv:
         sys.stderr.write(" Unable to create nvvidconv \n")
 
@@ -815,7 +815,7 @@ def main(args):
     sinkpad_streammux = streammux.get_request_pad("sink_0")
     if not sinkpad_streammux:
         sys.stderr.write(" Unable to get the sink pad of streammux \n")
-    
+    sink.set_property('sync', False)
 
     # we link the elements together
     print("Linking elements in the Pipeline \n")
@@ -953,7 +953,7 @@ def main(args):
     print("Waiting for the EOS message on the bus")
     
     # Wait for 10 seconds if the EOS from downstream somehow gets terminated before reaching head it will hand. Forcing EOS will possibly corrupt mp4
-    bus.timed_pop_filtered(Gst.CLOCK_TIME_NONE, Gst.MessageType.EOS)
+    bus.timed_pop_filtered(10000000000, Gst.MessageType.EOS)
     print("Stopping pipeline")
     
     # cleanup Pipeline and Serial Port and GPIO

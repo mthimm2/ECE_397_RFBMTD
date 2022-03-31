@@ -33,7 +33,8 @@ import gi
 gi.require_version('Gst', '1.0')
 gi.require_version('GLib', '2.0')
 gi.require_version('GObject', '2.0')
-from gi.repository import GObject, Gst, GLib
+from gi.repository import GObject, Gst 
+from gi.repository import GLib
 from common.is_aarch_64 import is_aarch64
 from common.bus_call import bus_call
 import pyds
@@ -117,6 +118,14 @@ FAR_WIDTH = 40
 battery_connected = True
 serial_connected = True
 gpio_connected = False
+
+flashdrive_connected = True
+
+
+# if flashdrive_connected:
+#     file_location = "/home/team3/USB_Drive/Ride_Videos/Ride_"+ current_time +".mp4"
+# else:
+#     file_location = "/home/team3/Videos/Video_Out/"+ current_time +".mp4"
 
 if serial_connected:
     try:
@@ -540,6 +549,7 @@ def main(args):
     global bus
     global loop
     global input_file 
+    global flashdrive_connected
 
     message = None
 
@@ -665,39 +675,47 @@ def main(args):
     # TODO Add third queue (leaky) and branch off from tee and connect to APPSINK
     
 
-    # Make the h264 encoder
-    encoder = Gst.ElementFactory.make("nvv4l2h264enc", "h264-encoder")
+    # File save element definitioons -----------------------------------------------------------------------------------------
+    encoder = Gst.ElementFactory.make("nvv4l2h264enc", "filesave-encoder")
     if not encoder:
         sys.stderr.write(" Unable to create encoder")
     encoder.set_property('bitrate', 4000000)
+    
     if is_aarch64():
         # encoder.set_property('preset-level', 1)
         # encoder.set_property('insert-sps-pps', 1)
         if input_file == None:
             encoder.set_property('bufapi-version', 1)
 
-    # Is this really needed? 
-    # changes from h264parse to mpeg4videoparse for debugging.  # FIXME h264 parser not working and will hold up the osd. Look into possible hangups in pipeline.
-    video_parser = Gst.ElementFactory.make("h264parse", "h264 parser")
+
+    # changes from h264parse to mpeg4videoparse for debugging.
+    video_parser = Gst.ElementFactory.make("h264parse", "filesave-parser")
     if not video_parser:
         sys.stderr.write(" Unable to create parser\n")
-    video_parser.set_property('config-interval', -1) # TODO See if this helps the issue of unreadable mp4 file if not remove.
+    # video_parser.set_property('config-interval', -1) # TODO See if this helps the issue of unreadable mp4 file if not remove.
 
     #mpegtsmux (previously: mp4mux) or qtmux
-    container = Gst.ElementFactory.make("mp4mux","muxer")
+    container = Gst.ElementFactory.make("matroskamux","filesave-muxer")
     if not container:
-        sys.stderr.write(" Unable to create mp4mux\n")
-
-    filesink_mp4 = Gst.ElementFactory.make("filesink","filesink_video")
+        sys.stderr.write(" Unable to create filesave-muxer\n")
+    
+    
+    filesink_mp4 = Gst.ElementFactory.make("filesink","filesave-sink")
     if not filesink_mp4:
         sys.stderr.write(" Unable to create filesink\n")
     
 
     current_time = time.localtime()
-    current_time = time.strftime("%b-%d-%Y_%H:%M:%S", current_time)
+    current_time = time.strftime("%b-%d-%Y_%H-%M-%S", current_time)
+    
+    # if flashdrive_connected:
+    #     filesink_mp4.set_property("location","/home/team3/USB_Drive/Ride_Videos/"+ current_time +".mp4")
+        
+    # else:
+    #     filesink_mp4.set_property("location", "/home/team3/Videos/Video_Out/"+ current_time +".mp4")
 
-    filesink_mp4.set_property("location","/home/team3/Videos/Video_Out/"+ current_time +".mp4")
-    filesink_mp4.set_property("sync", False) # Was 1 ,Works with 0
+    filesink_mp4.set_property("location","/home/team3/Videos/Ride_Videos/"+ current_time +".mkv")
+    filesink_mp4.set_property("sync", True) # Was 1 ,Works with 0
     filesink_mp4.set_property("async", False)# was 0, works with 1
     # filesink_mp4.set_property('max-lateness', 1000000000)
 
@@ -707,7 +725,7 @@ def main(args):
         sink = Gst.ElementFactory.make("fakesink","fakesink")
         if not sink:
             sys.stderr.write("Unable to create fakesink \n")
-        sink.set_property('sync', False)
+        sink.set_property('sync', True)
         sink.set_property('async', False)
 
     else:
@@ -721,7 +739,7 @@ def main(args):
             
         #sink = Gst.ElementFactory.make("nvoverlaysink", "nvvideo-renderer")
         sink = Gst.ElementFactory.make("nveglglessink", "nvvideo-renderer")
-        sink.set_property('sync', False)
+        sink.set_property('sync', True)
         sink.set_property('async', False)
         # sink.set_property("overlay-x",0) # 0
         # sink.set_property("overlay-y",360) #360

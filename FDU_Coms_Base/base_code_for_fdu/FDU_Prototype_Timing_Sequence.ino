@@ -383,6 +383,53 @@ void roundabout_15_to_45() {
 
 }
 
+void jimsCMFLCRDemo() {
+
+  // All close LEDs on
+  digitalWrite(redL, HIGH);
+  digitalWrite(redM, HIGH);
+  digitalWrite(redR, HIGH);
+
+  // All medium LEDs on
+  delay(250);
+  allOff();
+  digitalWrite(yelL, HIGH);
+  digitalWrite(yelM, HIGH);  
+  digitalWrite(yelR, HIGH);
+
+  // All far LEDs on
+  delay(250);
+  allOff();
+  digitalWrite(grnL, HIGH);
+  digitalWrite(grnM, HIGH);
+  digitalWrite(grnR, HIGH);
+
+  // Left column on
+  delay(250);
+  allOff();
+  digitalWrite(redL, HIGH);
+  digitalWrite(yelL, HIGH);
+  digitalWrite(grnL, HIGH);
+
+  // Middle column on
+  delay(250);
+  allOff();
+  digitalWrite(redM, HIGH);
+  digitalWrite(yelM, HIGH);
+  digitalWrite(grnM, HIGH);
+
+  // Right column on
+  delay(250);
+  allOff();
+  digitalWrite(redR, HIGH);
+  digitalWrite(yelR, HIGH);
+  digitalWrite(grnR, HIGH);
+
+  delay(250);
+  allOff();
+
+}
+
 void allOff() {
   digitalWrite(redL,LOW);
   digitalWrite(redM,LOW);

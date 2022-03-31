@@ -106,9 +106,9 @@ CENTER = (STANDARD_FRAME_WIDTH / 3, 2 * (STANDARD_FRAME_WIDTH / 3))
 
 # Constants that represent when a vehicle is close, medium, or far away.
 # Meant to line up with the coefficients that we obtain from detection processing below.
-CLOSE_WIDTH = 260
-MED_WIDTH = 180
-FAR_WIDTH = 130
+CLOSE_WIDTH = 180
+MED_WIDTH = 115
+FAR_WIDTH = 80
 
 
 # Turn on and off Functionality
@@ -282,6 +282,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         serial_data_package = ''
 
 
+        # Make sure that we actuall have an object to look at
         if obj_meta is not None:
 
             # Determine closes object in each frame

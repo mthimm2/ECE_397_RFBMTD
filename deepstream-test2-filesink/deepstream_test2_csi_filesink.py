@@ -666,8 +666,8 @@ def main(args):
         sys.stderr.write(" Unable to create encoder")
     encoder.set_property('bitrate', 4000000)
     if is_aarch64():
-        encoder.set_property('preset-level', 1)
-        encoder.set_property('insert-sps-pps', 1)
+        # encoder.set_property('preset-level', 1)
+        # encoder.set_property('insert-sps-pps', 1)
         if input_file == None:
             encoder.set_property('bufapi-version', 1)
 
@@ -690,9 +690,10 @@ def main(args):
 
     current_time = time.localtime()
     current_time = time.strftime("%b-%d-%Y_%H:%M:%S", current_time)
+
     filesink_mp4.set_property("location","/home/team3/Videos/Video_Out/"+ current_time +".mp4")
-    filesink_mp4.set_property("sync",0) # Was 1 ,Works with 0
-    filesink_mp4.set_property("async",1)# was 0, works with 1
+    filesink_mp4.set_property("sync", False) # Was 1 ,Works with 0
+    filesink_mp4.set_property("async", False)# was 0, works with 1
 
 
     if (no_display):
@@ -700,6 +701,9 @@ def main(args):
         sink = Gst.ElementFactory.make("fakesink","fakesink")
         if not sink:
             sys.stderr.write("Unable to create fakesink \n")
+        sink.set_property('sync', False)
+        sink.set_property('async', False)
+
     else:
         # Define Sink (This is for On Screen Display) for jetson prefomance boost nvoverlaysink
         print("Creating OverlaySink \n")
@@ -711,7 +715,8 @@ def main(args):
             
         #sink = Gst.ElementFactory.make("nvoverlaysink", "nvvideo-renderer")
         sink = Gst.ElementFactory.make("nveglglessink", "nvvideo-renderer")
-        sink.set_property('sync', 0)
+        sink.set_property('sync', False)
+        sink.set_property('async', False)
         # sink.set_property("overlay-x",0) # 0
         # sink.set_property("overlay-y",360) #360
         # sink.set_property("overlay-w",960) #720
@@ -809,6 +814,7 @@ def main(args):
     sinkpad_streammux = streammux.get_request_pad("sink_0")
     if not sinkpad_streammux:
         sys.stderr.write(" Unable to get the sink pad of streammux \n")
+    
 
     # we link the elements together
     print("Linking elements in the Pipeline \n")
@@ -927,8 +933,6 @@ def main(args):
       loop.run()
     except:
         print("Sending an EOS event to the pipeline")
-        # print("Sending EOS to Filesink_mp4")
-        # pipeline.send_event(Gst.Event.new_eos(), filesink_mp4)
         pass
 
 
@@ -936,19 +940,19 @@ def main(args):
 
     # Wait for EOS before closing the pipeline Gst.CLOCK_TIME_NONE -> poll indefinitly untill message (EOS) is recieved
     # this function will block forever until a matching message was posted on the bus.
-    pipeline.set_state(Gst.State.PAUSED)
-    print("Pausing the pipeline")
+    # pipeline.set_state(Gst.State.PAUSED)
+    # print("Pausing the pipeline")
 
 
-    event = Gst.Event.new_eos()
-    Gst.Element.send_event(self.pipeline, event)
+    # event = Gst.Event.new_eos()
+    #Gst.Element.send_event(pipeline, event)
     
 
-    # pipeline.send_event(Gst.Event.new_eos())
+    pipeline.send_event(Gst.Event.new_eos())
     print("Waiting for the EOS message on the bus")
-
+    
     # Wait for 10 seconds if the EOS from downstream somehow gets terminated before reaching head it will hand. Forcing EOS will possibly corrupt mp4
-    # bus.timed_pop_filtered(10000000000, Gst.MessageType.EOS)
+    bus.timed_pop_filtered(Gst.CLOCK_TIME_NONE, Gst.MessageType.EOS)
     print("Stopping pipeline")
     
     # cleanup Pipeline and Serial Port and GPIO

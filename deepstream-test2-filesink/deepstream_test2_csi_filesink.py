@@ -107,8 +107,8 @@ CENTER = (STANDARD_FRAME_WIDTH / 3, 2 * (STANDARD_FRAME_WIDTH / 3))
 # Constants that represent when a vehicle is close, medium, or far away.
 # Meant to line up with the coefficients that we obtain from detection processing below.
 CLOSE_WIDTH = 180
-MED_WIDTH = 115
-FAR_WIDTH = 80
+MED_WIDTH = 105
+FAR_WIDTH = 40
 
 
 # Turn on and off Functionality

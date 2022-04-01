@@ -434,13 +434,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         for key, value in lcr_history.copy().items() :
             if value['delta_w'] < 0:
                 lcr_history.pop(key)
-
-        
-        # Check for GPIO Pin Change --------------------------------------------------------------------------------------
-        # GPIO.add_event_detect(input_pin, GPIO.FALLING, callback=button_pressed, bouncetime=1)
-
-
-
+                
         # Setting display text to be shown on screen ---------------------------------------------------------------------
         display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
         display_meta.num_labels = 1
@@ -510,9 +504,6 @@ def decodebin_child_added(child_proxy,Object,name,useright_data):
     print("Decodebin child added:", name, "\n")
     if(name.find("decodebin") != -1):
         Object.connect("child-added",decodebin_child_added,useright_data)
-
-    # if "source" in name:
-    #     Object.set_property("drop-on-latency", True)
 
 
 def create_source_bin(index,uri):
@@ -715,17 +706,10 @@ def main(args):
 
     current_time = time.localtime()
     current_time = time.strftime("%b-%d-%Y_%H-%M-%S", current_time)
-    
-    # if flashdrive_connected:
-    #     filesink_mp4.set_property("location","/home/team3/USB_Drive/Ride_Videos/"+ current_time +".mp4")
-        
-    # else:
-    #     filesink_mp4.set_property("location", "/home/team3/Videos/Video_Out/"+ current_time +".mp4")
 
     filesink_mp4.set_property("location","/home/team3/Videos/Ride_Videos/"+ current_time +".mkv")
     filesink_mp4.set_property("sync", True) # Was 1 ,Works with 0
     filesink_mp4.set_property("async", False)# was 0, works with 1
-    # filesink_mp4.set_property('max-lateness', 1000000000)
 
 
     if (no_display):
@@ -749,10 +733,6 @@ def main(args):
         sink = Gst.ElementFactory.make("nveglglessink", "nvvideo-renderer")
         sink.set_property('sync', True)
         sink.set_property('async', False)
-        # sink.set_property("overlay-x",0) # 0
-        # sink.set_property("overlay-y",360) #360
-        # sink.set_property("overlay-w",960) #720
-        # sink.set_property("overlay-h",480) #360
         if not sink:
             sys.stderr.write(" Unable to create egl sink \n")
 
@@ -810,17 +790,8 @@ def main(args):
     print("Adding elements to Pipeline \n")
     # pipeline.add(source)
 
-    if input_file != None:
-        # pipeline.add(decodebin)
-        # decodebin.connect("pad-added", self.decodebin_pad_added)
-        # pipeline.add(input_file_parser)
-        # pipeline.add(decoder)
-        # pipeline.add(caps_decoder)
-        # pipeline.add(qtdemux)
-        pass
-
-    # CSI Camera Input 
-    else:
+    if input_file == None:
+        # CSI Camera Input 
         pipeline.add(source)
         pipeline.add(nvvidconv_src)
         pipeline.add(caps_nvvidconv_src)

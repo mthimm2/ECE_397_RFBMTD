@@ -23,8 +23,6 @@ import sys
 import os
 from optparse import OptionParser
 import time
-#sys.path.append('../')
-# Changed to absolute path
 sys.path.append('/opt/nvidia/deepstream/deepstream-6.0/sources/deepstream_python_apps/apps')
 import platform
 import configparser
@@ -434,7 +432,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         for key, value in lcr_history.copy().items() :
             if value['delta_w'] < 0:
                 lcr_history.pop(key)
-                
+
         # Setting display text to be shown on screen ---------------------------------------------------------------------
         display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
         display_meta.num_labels = 1

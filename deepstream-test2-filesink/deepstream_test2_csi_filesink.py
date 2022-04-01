@@ -38,6 +38,9 @@ from gi.repository import GLib
 from common.is_aarch_64 import is_aarch64
 from common.bus_call import bus_call
 import pyds
+import subprocess
+import signal
+
 
 # Import Battery Module
 from battery_module import *
@@ -45,14 +48,15 @@ import struct
 import smbus
 
 # # Import GPIO For Button Presses
-# import Jetson.GPIO as GPIO
-# # Pin Definitions
-# input_pin = 10  # BCM pin 6, BOARD pin 31
-# # Connect 3.3v 4.7K to 10K Pull up resistor to input pin and connect button to input_pin and ground.
-# # Pin Setup:
-# GPIO.setmode(GPIO.BCM)  # BCM pin-numbering scheme from Raspberry Pi
-# GPIO.setup(input_pin, GPIO.IN)  # set pin as an input pin
-
+import Jetson.GPIO as GPIO
+print(GPIO.JETSON_INFO)
+# Pin Definitions
+input_pin = 15  # BCM pin 6, BOARD pin 31
+# Connect 3.3v 4.7K to 10K Pull up resistor to input pin and connect button to input_pin and ground.
+# Pin Setup:
+GPIO.setmode(GPIO.BOARD)  # BCM pin-numbering scheme from Raspberry Pi
+GPIO.setup(input_pin, GPIO.IN)  # set pin as an input pin
+print("GPIO PIN(15): ", GPIO.input(input_pin))
 
 
 
@@ -119,13 +123,17 @@ battery_connected = True
 serial_connected = True
 gpio_connected = False
 
-flashdrive_connected = True
 
+i = 0
+# GPIO Interrupt Callback Test
+def callback_fn(input_pin):
+    global i
+    i=i + 1
+    print("Button Pressed: ", i)
+    exit_call2()
 
-# if flashdrive_connected:
-#     file_location = "/home/team3/USB_Drive/Ride_Videos/Ride_"+ current_time +".mp4"
-# else:
-#     file_location = "/home/team3/Videos/Video_Out/"+ current_time +".mp4"
+# Add GPIO Interrupt
+GPIO.add_event_detect(input_pin, GPIO.FALLING, callback=callback_fn, bouncetime=200)
 
 if serial_connected:
     try:
@@ -843,21 +851,6 @@ def main(args):
     # we link the elements together
     print("Linking elements in the Pipeline \n")
     
-    # Input File Linking -------------------------------------------------------------
-    # if input_file != None:
-    #     print("Linking File Input Pipeline")
-    #     source.link(input_file_parser)
-    #     # qtdemux.link(input_file_parser)
-
-    #     input_file_parser.link(decoder)
-
-    #     decoder_src_pad = decoder.get_static_pad("src")
-
-    #     if not decoder_src_pad:
-    #         sys.stderr.write(" Unable to get the decoder src pad \n")
-
-    #     decoder_src_pad.link(sinkpad_streammux)
-
     if input_file == None:
         print("Linking Camera Input Pipeline")
         source.link(nvvidconv_src)
@@ -951,7 +944,8 @@ def main(args):
         sys.stderr.write(" Unable to get sink pad of nvosd \n")
     osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
 
-    
+    # TODO add probe for file input to see when idle so that it can determine when file is done playing.
+
     print("Starting pipeline \n")
 
     # start play back and listed to events
@@ -1032,27 +1026,27 @@ def parse_args():
    
     return 0
 
-# Other Exit Call - TODO see if this exits more gracefully
-# def exit_call2():
-#     sys.exit(main(sys.argv))
-    
-#     return 0
+# Use this exit call
+def exit_call2():
+    print("Quiting the Loop")
+    loop.quit()
+    return 0
 
 
 
 # Software call to exit the program
-# def exit_call():
-#     global pipeline
-#     global bus
-#     global loop
+def exit_call():
+    global pipeline
+    global bus
+    global loop
 
     
-#     pipeline.send_event(Gst.Event.new_eos())
-#     print("Waiting for the EOS message on the bus")
-#     bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)
-#     print("Stopping pipeline")
-#     pipeline.set_state(Gst.State.NULL)
-#     print("Program Exited Sucessfully")
+    pipeline.send_event(Gst.Event.new_eos())
+    print("Waiting for the EOS message on the bus")
+    bus.timed_pop_filtered(5000000000, Gst.MessageType.EOS)
+    print("Stopping pipeline")
+    pipeline.set_state(Gst.State.NULL)
+    print("Program Exited Sucessfully")
     
 #     return 0
 

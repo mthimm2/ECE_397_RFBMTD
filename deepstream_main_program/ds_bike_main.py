@@ -115,6 +115,8 @@ CLOSE_WIDTH = 180
 MED_WIDTH = 105
 FAR_WIDTH = 40
 
+# Sentinel for when to update the FDU
+frame_count = 0
 
 # Turn on and off Functionality
 battery_connected = True
@@ -158,6 +160,9 @@ def button_pressed(channel):
     print("Button Pressed")
 
 
+# Used as the starting point for modifying the Objmeta 
+def generate_object_metadata():
+    pass
 
 # osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
 # and update params for drawing rectangle, object information etc.
@@ -412,12 +417,16 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                     uart_transmission.send(serial_data_package)
             '''
             
-            uart_transmission.send(serial_data_package)
+            if frame_count % 30 == 0:
+                uart_transmission.send(serial_data_package)
 
             # If Battery is less than 15 percent Exit the program!
             if battery_capacity < 15:
                 exit_call2()
         
+            # Increment sentinel
+            frame_count += 1
+
             # # Clean out the history dictionary of all of the objects that were moving away.
             # for key, value in lcr_history.copy().items() :
             #     if value['delta_w'] < 0:
@@ -426,12 +435,31 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # If obj_meta is None
         else:
             try:
+
+                # Battery and status LED check
+                if battery_capacity > 75:
+                    battery_state = "4"
+                elif battery_capacity > 50:
+                    battery_state = "3"
+                elif battery_capacity > 25:
+                    battery_state = "2"
+                elif battery_capacity < 15:
+                    print("Battery Low! Exiting Program")
+                    battery_state = "1"
+                    status_data="1"
+
+                # If no object is detected, turn off all promximity LEDs, but keep state of battery and status LEDs
+                uart_transmission.send("000" + status_data + battery_state)
+
+                # Advance to the next frame in the buffer
                 l_frame=l_frame.next
                 continue
+
             except StopIteration:
                 break
 
             
+
             # if serial_connected:
             #     uart_transmission.send("")
             

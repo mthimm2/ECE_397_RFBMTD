@@ -1,0 +1,6 @@
+boost_clocks
+sudo python3 ds_bike_main.py -i ~/Videos/Test_Videos/test1.mp4
+
+
+sudo python3 ds_bike_main.py -i ~/Videos/Test_Videos/road.mp4
+

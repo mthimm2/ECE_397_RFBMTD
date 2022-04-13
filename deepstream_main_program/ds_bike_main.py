@@ -934,8 +934,6 @@ def main(args):
 
     
     print("Quiting the Loop")
-    # loop.quit()
-    # loop.unref()
     print("Sending an EOS event to the pipeline")
     pipeline.send_event(Gst.Event.new_eos())
     
@@ -962,12 +960,6 @@ def main(args):
 
     return 0
 
-
-    
-
-
-
-    
 
 # Parse and validate input arguments
 def parse_args():
@@ -1027,54 +1019,54 @@ def exit_call():
 #     return 0
 
 # # Bus message handeling 
-# def bus_call(bus, message, loop):
-#     global g_eos_list
-#     t = message.type
-#     if t == Gst.MessageType.EOS:
-#         sys.stdout.write("End-of-stream\n")
-#         loop.quit()
-#     elif t==Gst.MessageType.WARNING:
-#         err, debug = message.parse_warning()
-#         sys.stderr.write("Warning: %s: %s\n" % (err, debug))
-#     elif t == Gst.MessageType.ERROR:
-#         err, debug = message.parse_error()
-#         sys.stderr.write("Error: %s: %s\n" % (err, debug))
-#         loop.quit()
-#     elif t == Gst.MessageType.ELEMENT:
-#         struct = message.get_structure()
-#         #Check for stream-eos message
-#         if struct is not None and struct.has_name("stream-eos"):
-#             parsed, stream_id = struct.get_uint("stream-id")
-#             if parsed:
-#                 #Set eos status of stream to True, to be deleted in delete-sources
-#                 print("Got EOS from stream %d" % stream_id)
-#                 g_eos_list[stream_id] = True
-#     return True
+def bus_call(bus, message, loop):
+    global g_eos_list
+    t = message.type
+    if t == Gst.MessageType.EOS:
+        sys.stdout.write("End-of-stream\n")
+        loop.quit()
+    elif t==Gst.MessageType.WARNING:
+        err, debug = message.parse_warning()
+        sys.stderr.write("Warning: %s: %s\n" % (err, debug))
+    elif t == Gst.MessageType.ERROR:
+        err, debug = message.parse_error()
+        sys.stderr.write("Error: %s: %s\n" % (err, debug))
+        loop.quit()
+    elif t == Gst.MessageType.ELEMENT:
+        struct = message.get_structure()
+        #Check for stream-eos message
+        if struct is not None and struct.has_name("stream-eos"):
+            parsed, stream_id = struct.get_uint("stream-id")
+            if parsed:
+                #Set eos status of stream to True, to be deleted in delete-sources
+                print("Got EOS from stream %d" % stream_id)
+                g_eos_list[stream_id] = True
+    return True
 
 
-# def stop_release_source(source_id):
-#     global g_num_sources
-#     global g_source_bin_list
-#     global streammux
-#     global pipeline
+def stop_release_source(source_id):
+    global g_num_sources
+    global g_source_bin_list
+    global streammux
+    global pipeline
 
-#     #Attempt to change status of source to be released 
-#     state_return = g_source_bin_list[source_id].set_state(Gst.State.NULL)
+    #Attempt to change status of source to be released 
+    state_return = g_source_bin_list[source_id].set_state(Gst.State.NULL)
 
-#     if state_return == Gst.StateChangeReturn.SUCCESS:
-#         print("STATE CHANGE SUCCESS\n")
-#         pad_name = "sink_%u" % source_id
-#         print(pad_name)
-#         #Retrieve sink pad to be released
-#         sinkpad = streammux.get_static_pad(pad_name)
-#         #Send flush stop event to the sink pad, then release from the streammux
-#         sinkpad.send_event(Gst.Event.new_flush_stop(False))
-#         streammux.release_request_pad(sinkpad)
-#         print("STATE CHANGE SUCCESS\n")
-#         #Remove the source bin from the pipeline
-#         pipeline.remove(g_source_bin_list[source_id])
-#         source_id -= 1
-#         g_num_sources -= 1
+    if state_return == Gst.StateChangeReturn.SUCCESS:
+        print("STATE CHANGE SUCCESS\n")
+        pad_name = "sink_%u" % source_id
+        print(pad_name)
+        #Retrieve sink pad to be released
+        sinkpad = streammux.get_static_pad(pad_name)
+        #Send flush stop event to the sink pad, then release from the streammux
+        sinkpad.send_event(Gst.Event.new_flush_stop(False))
+        streammux.release_request_pad(sinkpad)
+        print("STATE CHANGE SUCCESS\n")
+        #Remove the source bin from the pipeline
+        pipeline.remove(g_source_bin_list[source_id])
+        source_id -= 1
+        g_num_sources -= 1
 
 if __name__ == '__main__':
     ret = parse_args()

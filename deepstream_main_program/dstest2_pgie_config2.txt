@@ -80,7 +80,7 @@ network-mode=2
 interval=2
 gie-unique-id=1
 #output-blob-names=output_bbox/BiasAdd;output_cov/Sigmoid.
-# Cluster Modes: Integer 0: OpenCV groupRectangles() 1: DBSCAN 2: Non Maximum Suppression 3: DBSCAN + NMS Hybrid 4: No clustering
+# Cluster Modes: Integer 0: OpenCV groupRectangles() 1: DBSCAN | 2: Non Maximum Suppression | 3: DBSCAN + NMS Hybrid 4: No clustering
 cluster-mode=2
 ## Filter out bicycles and roadsigns
 filter-out-class-ids=1;3

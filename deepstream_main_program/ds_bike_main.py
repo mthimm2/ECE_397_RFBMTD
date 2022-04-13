@@ -176,7 +176,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     global pipeline
     global bus
     global loop
-
+    global frame_count
     global bat_busw
     global previous_battery_state
     global lcr_history

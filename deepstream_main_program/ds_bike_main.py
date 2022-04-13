@@ -439,6 +439,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 # Batter read
                 battery_capacity = readCapacity(bat_bus)
                 battery_state = "0"
+                status_data = "0"
 
                 # Battery and status LED check
                 if battery_capacity > 75:

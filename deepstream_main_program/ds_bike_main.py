@@ -157,6 +157,15 @@ previous_battery_state = ""
 def button_pressed(channel):
     print("Button Pressed")
 
+# Added Meta Data Class
+def generate_person_meta(data):
+    obj = pyds.NvDsPersonObject.cast(data)
+    obj.age = 45
+    obj.cap = "none"
+    obj.hair = "black"
+    obj.gender = "male"
+    obj.apparel = "formal"
+    return obj
 
 
 # osd_sink_pad_buffer_probe  will extract metadata received on OSD sink pad

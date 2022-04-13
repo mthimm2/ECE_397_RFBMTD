@@ -417,7 +417,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                     uart_transmission.send(serial_data_package)
             '''
             
-            if frame_count % 30 == 0:
+            if frame_count % 15 == 0:
                 uart_transmission.send(serial_data_package)
 
             # If Battery is less than 15 percent Exit the program!
@@ -435,6 +435,10 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # If obj_meta is None
         else:
             try:
+
+                # Batter read
+                battery_capacity = readCapacity(bat_bus)
+                battery_state = "0"
 
                 # Battery and status LED check
                 if battery_capacity > 75:

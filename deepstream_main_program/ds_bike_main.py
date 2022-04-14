@@ -34,6 +34,7 @@ from gi.repository import GObject, Gst
 from gi.repository import GLib
 from common.is_aarch_64 import is_aarch64
 from common.bus_call import bus_call
+from common.utils import *
 import pyds
 import subprocess
 import signal
@@ -106,8 +107,8 @@ STANDARD_FRAME_HEIGHT = 720
 
 # This lets us statically define the LCR regions
 # These numbers reflect that fact That we're looking behind us. Hence right is on the left of the frame.
-RIGHT = (0, STANDARD_FRAME_WIDTH / 3)
-CENTER = (STANDARD_FRAME_WIDTH / 3, 2 * (STANDARD_FRAME_WIDTH / 3))
+RIGHT = (0, (STANDARD_FRAME_WIDTH / 3) - 100)
+CENTER = ((STANDARD_FRAME_WIDTH / 3) + 100, (2 * (STANDARD_FRAME_WIDTH / 3)) + 100)
 
 # Constants that represent when a vehicle is close, medium, or far away.
 # Meant to line up with the coefficients that we obtain from detection processing below.
@@ -123,6 +124,10 @@ battery_connected = True
 serial_connected = True
 gpio_connected = False
 
+# Location Data 
+left_data  = '0'
+center_data  = '0'
+right_data  = '0'
 
 i = 0
 # GPIO Interrupt Callback Test
@@ -180,6 +185,10 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     global bat_busw
     global previous_battery_state
     global lcr_history
+
+    global left_data
+    global right_data
+    global center_data
 
     gst_buffer = info.get_buffer()
     if not gst_buffer:
@@ -297,9 +306,9 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
         # Debug 
         location = 'None'
-        left_data  = '0'
-        center_data  = '0'
-        right_data  = '0'
+        # left_data  = '0'
+        # center_data  = '0'
+        # right_data  = '0'
         # battery_data  = '00'
         serial_data_package = ''
 
@@ -417,8 +426,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                     uart_transmission.send(serial_data_package)
             '''
             
-            if frame_count % 15 == 0:
-                uart_transmission.send(serial_data_package)
+            # if frame_count % 15 == 0:
+            uart_transmission.send(serial_data_package)
 
             # If Battery is less than 15 percent Exit the program!
             if battery_capacity < 15:
@@ -436,25 +445,25 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         else:
             try:
 
-                # Batter read
-                battery_capacity = readCapacity(bat_bus)
-                battery_state = "0"
-                status_data = "0"
+                # # Batter read
+                # battery_capacity = readCapacity(bat_bus)
+                # battery_state = "0"
+                # status_data = "0"
 
-                # Battery and status LED check
-                if battery_capacity > 75:
-                    battery_state = "4"
-                elif battery_capacity > 50:
-                    battery_state = "3"
-                elif battery_capacity > 25:
-                    battery_state = "2"
-                elif battery_capacity < 15:
-                    print("Battery Low! Exiting Program")
-                    battery_state = "1"
-                    status_data="1"
+                # # Battery and status LED check
+                # if battery_capacity > 75:
+                #     battery_state = "4"
+                # elif battery_capacity > 50:
+                #     battery_state = "3"
+                # elif battery_capacity > 25:
+                #     battery_state = "2"
+                # elif battery_capacity < 15:
+                #     print("Battery Low! Exiting Program")
+                #     battery_state = "1"
+                #     status_data="1"
 
-                # If no object is detected, turn off all promximity LEDs, but keep state of battery and status LEDs
-                uart_transmission.send("000" + status_data + battery_state)
+                # # If no object is detected, turn off all promximity LEDs, but keep state of battery and status LEDs
+                # uart_transmission.send("000" + status_data + battery_state)
 
                 # Advance to the next frame in the buffer
                 l_frame=l_frame.next
@@ -1163,29 +1172,29 @@ def exit_call():
 #     return 0
 
 # # Bus message handeling 
-def bus_call(bus, message, loop):
-    global g_eos_list
-    t = message.type
-    if t == Gst.MessageType.EOS:
-        sys.stdout.write("End-of-stream\n")
-        loop.quit()
-    elif t==Gst.MessageType.WARNING:
-        err, debug = message.parse_warning()
-        sys.stderr.write("Warning: %s: %s\n" % (err, debug))
-    elif t == Gst.MessageType.ERROR:
-        err, debug = message.parse_error()
-        sys.stderr.write("Error: %s: %s\n" % (err, debug))
-        loop.quit()
-    elif t == Gst.MessageType.ELEMENT:
-        struct = message.get_structure()
-        #Check for stream-eos message
-        if struct is not None and struct.has_name("stream-eos"):
-            parsed, stream_id = struct.get_uint("stream-id")
-            if parsed:
-                #Set eos status of stream to True, to be deleted in delete-sources
-                print("Got EOS from stream %d" % stream_id)
-                g_eos_list[stream_id] = True
-    return True
+# def bus_call(bus, message, loop):
+#     global g_eos_list
+#     t = message.type
+#     if t == Gst.MessageType.EOS:
+#         sys.stdout.write("End-of-stream\n")
+#         loop.quit()
+#     elif t==Gst.MessageType.WARNING:
+#         err, debug = message.parse_warning()
+#         sys.stderr.write("Warning: %s: %s\n" % (err, debug))
+#     elif t == Gst.MessageType.ERROR:
+#         err, debug = message.parse_error()
+#         sys.stderr.write("Error: %s: %s\n" % (err, debug))
+#         loop.quit()
+#     elif t == Gst.MessageType.ELEMENT:
+#         struct = message.get_structure()
+#         #Check for stream-eos message
+#         if struct is not None and struct.has_name("stream-eos"):
+#             parsed, stream_id = struct.get_uint("stream-id")
+#             if parsed:
+#                 #Set eos status of stream to True, to be deleted in delete-sources
+#                 print("Got EOS from stream %d" % stream_id)
+#                 g_eos_list[stream_id] = True
+#     return True
 
 
 def stop_release_source(source_id):

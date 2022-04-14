@@ -71,6 +71,15 @@ batch-size=1
 num-detected-classes=4
 # Process mode: 1= Primary GIE
 process-mode=1
+# Reducing Spurious Detections
+threshold=0.7
+detected-min-w=200
+detected-min-h=150
+detected-max-w=400
+#detected-max-h=
+#roi-top-offset=
+#roi-bottom-offset=
+# End of Threshold Parameters
 model-color-format=0
 #network-mode:2=FP16
 network-mode=2
@@ -88,6 +97,7 @@ filter-out-class-ids=1;3
 
 # Used for Clustering
 [class-attrs-all]
+# was 0.5 for pre cluster threshold
 pre-cluster-threshold= 0.5
 #post-cluster-threshold= 0.5
 # Epsilon values for DBSCAN
